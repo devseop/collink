@@ -9,13 +9,16 @@ import templatesRoute from './templates/templates.route';
 import selectTemplatesRoute from './templates/selectTemplates.route';
 import editTemplatesRoute from './templates/editTemplates.route';
 import publicTemplateRoute from './publicTemplate.route';
+import previewTemplatesRoute from './templates/previewTemplates.route';
+import completedTemplatesRoute from './templates/completedTemplates.route';
 
 const routerTree = rootRoute.addChildren([
   indexRoute,
   signInRoute,
   publicTemplateRoute,
   usersRoute.addChildren([userSetUsernameRoute, usersProfileRoute]),
-  templatesRoute.addChildren([selectTemplatesRoute, editTemplatesRoute]),
+  templatesRoute.addChildren([selectTemplatesRoute, editTemplatesRoute, previewTemplatesRoute]),
+  completedTemplatesRoute,
 ]);
 
 const router = createRouter({

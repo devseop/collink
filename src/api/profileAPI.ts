@@ -2,13 +2,14 @@ import { supabase } from '../lib/supabaseClient';
 
 export type ProfileRecord = {
   id: string;
-  username: string | null;
+  username?: string;
+  avatarUrl?: string;
 };
 
 export async function getProfile(userId: string): Promise<ProfileRecord | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username')
+    .select('id, username, avatar_url')
     .eq('id', userId)
     .maybeSingle<ProfileRecord>();
 

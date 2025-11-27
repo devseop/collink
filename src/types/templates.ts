@@ -47,6 +47,7 @@ export type UserTemplate = {
   userId: string;
   isBackgroundColored?: boolean;
   backgroundColor?: string;
+  isPublished?: boolean;
 };
 
 export type Template = DefaultTemplate | UserTemplate;

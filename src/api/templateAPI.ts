@@ -31,25 +31,71 @@ export async function getDefaultTemplates(): Promise<DefaultTemplate[]> {
   }));
 }
 
+type CustomTemplateRow = {
+  id: string;
+  user_id: string;
+  background_image_url: string | null;
+  background_color: string | null;
+  is_background_colored: boolean | null;
+  created_at?: string;
+  is_published?: boolean | null;
+  category?: Category | null;
+};
+
+type CustomTemplateItemRow = {
+  id: string;
+  template_id: string;
+  type: 'image' | 'text';
+  pos_x: number;
+  pos_y: number;
+  rotation?: number | null;
+  z_index?: number | null;
+  order_index?: number | null;
+  image_url?: string | null;
+  width?: number | null;
+  height?: number | null;
+  scale_percent?: number | null;
+  text_content?: string | null;
+  font_size?: number | null;
+  font_weight?: number | null;
+  font_family?: string | null;
+  font_color?: string | null;
+  link_url?: string | null;
+  has_link?: boolean | null;
+};
+
 export type CustomTemplatePayload = {
   userId: string;
   backgroundImageUrl?: string;
   backgroundColor?: string;
   isBackgroundColored?: boolean;
   items: TemplateItem[];
+  customTemplateId: string;
+  isPublished?: boolean;
+  sourceTemplateId?: string | null;
+  category?: Category | null;
 };
 
 export async function createCustomTemplate(payload: CustomTemplatePayload) {
-  const customTemplateId = crypto.randomUUID();
+  const { error: unpublishError } = await supabase
+    .from('custom_templates')
+    .update({ is_published: false })
+    .eq('user_id', payload.userId);
+
+  if (unpublishError) {
+    throw new Error(`Failed to unpublish previous templates: ${unpublishError?.message ?? 'Unknown error'}`);
+  }
+
   const { data, error } = await supabase
     .from('custom_templates')
     .insert({
       user_id: payload.userId,
-      id: customTemplateId,
+      id: payload.customTemplateId,
       background_image_url: payload.backgroundImageUrl ?? null,
       background_color: payload.backgroundColor ?? null,
       is_background_colored: payload.isBackgroundColored ?? false,
-      items: payload.items ?? [],
+      is_published: payload.isPublished ?? false,
+      category: payload.category ?? null,
     })
     .select('id')
     .single();
@@ -58,18 +104,38 @@ export async function createCustomTemplate(payload: CustomTemplatePayload) {
     throw new Error(`Failed to create custom template: ${error?.message ?? 'Unknown error'}`);
   }
 
+  if (payload.items?.length) {
+    const itemsToInsert = payload.items.map((item, index) => ({
+      template_id: payload.customTemplateId,
+      type: item.imageUrl ? 'image' : 'text',
+      pos_x: item.coordinates?.x ?? 0,
+      pos_y: item.coordinates?.y ?? 0,
+      rotation: item.rotation ?? 0,
+      order_index: item.index ?? index,
+      image_url: item.imageUrl ?? null,
+      width: item.size?.width ?? null,
+      height: item.size?.height ?? null,
+      scale_percent: null,
+      text_content: item.text ?? null,
+      font_size: item.font?.size ?? null,
+      font_weight: item.font?.weight ?? null,
+      font_family: item.font?.family ?? null,
+      font_color: item.font?.color ?? null,
+      link_url: item.linkUrl ?? null,
+      has_link: item.hasLink ?? null,
+    }));
+
+    const { error: insertItemsError } = await supabase
+      .from('custom_template_items')
+      .insert(itemsToInsert);
+
+    if (insertItemsError) {
+      throw new Error(`Failed to create custom template items: ${insertItemsError?.message ?? 'Unknown error'}`);
+    }
+  }
+
   return data;
 }
-
-type CustomTemplateRow = {
-  id: string;
-  user_id: string;
-  background_image_url: string | null;
-  background_color: string | null;
-  is_background_colored: boolean | null;
-  items: TemplateItem[];
-  created_at?: string;
-};
 
 export type PublicTemplate = {
   id: string;
@@ -78,15 +144,18 @@ export type PublicTemplate = {
   backgroundColor?: string;
   isBackgroundColored?: boolean;
   items: TemplateItem[];
+  isPublished?: boolean;
+  category?: Category | null;
 };
 
-export async function getLatestCustomTemplateByUser(
+export async function getLatestPublishedCustomTemplateByUser(
   userId: string
 ): Promise<PublicTemplate | null> {
   const { data, error } = await supabase
     .from('custom_templates')
-    .select('id, user_id, background_image_url, background_color, is_background_colored, items')
+    .select('id, user_id, background_image_url, background_color, is_background_colored, is_published, category')
     .eq('user_id', userId)
+    .eq('is_published', true)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle<CustomTemplateRow>();
@@ -99,12 +168,49 @@ export async function getLatestCustomTemplateByUser(
     return null;
   }
 
+  const { data: itemsData, error: itemsError } = await supabase
+    .from('custom_template_items')
+    .select('*')
+    .eq('template_id', data.id)
+    .order('order_index', { ascending: true });
+
+  if (itemsError) {
+    throw new Error(`Failed to fetch template items: ${itemsError?.message ?? 'Unknown error'}`);
+  }
+
+  const items: TemplateItem[] = (itemsData ?? []).map((item: CustomTemplateItemRow) => ({
+    imageUrl: item.image_url ?? undefined,
+    text: item.text_content ?? undefined,
+    hasLink: item.has_link ?? undefined,
+    linkUrl: item.link_url ?? undefined,
+    index: item.order_index ?? undefined,
+    coordinates: { x: item.pos_x ?? 0, y: item.pos_y ?? 0 },
+    size:
+      item.width != null && item.height != null
+        ? {
+            width: item.width,
+            height: item.height,
+          }
+        : undefined,
+    font: item.type === 'text'
+      ? {
+          size: item.font_size ?? 18,
+          weight: item.font_weight ?? 600,
+          color: item.font_color ?? '#000000',
+          family: item.font_family ?? 'classic',
+        }
+      : undefined,
+    rotation: item.rotation ?? 0,
+  }));
+
   return {
     id: data.id,
     userId: data.user_id,
     backgroundImageUrl: data.background_image_url ?? undefined,
     backgroundColor: data.background_color ?? undefined,
     isBackgroundColored: data.is_background_colored ?? undefined,
-    items: data.items ?? [],
+    items,
+    isPublished: data.is_published ?? undefined,
+    category: data.category ?? undefined,
   };
 }

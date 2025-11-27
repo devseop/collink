@@ -2,8 +2,9 @@ import { createRoute } from '@tanstack/react-router';
 import rootRoute from './root';
 import { useEffect, useState } from 'react';
 import { getProfileByUsername } from '../api/profileAPI';
-import { getLatestCustomTemplateByUser } from '../api/templateAPI';
+import { getLatestPublishedCustomTemplateByUser } from '../api/templateAPI';
 import type { PublicTemplate } from '../api/templateAPI';
+import { mapTemplateItemsToRender } from '../utils/templateRender';
 
 const publicTemplateRoute = createRoute({
   path: '$username',
@@ -28,7 +29,7 @@ const publicTemplateRoute = createRoute({
             return;
           }
 
-          const latestTemplate = await getLatestCustomTemplateByUser(profile.id);
+          const latestTemplate = await getLatestPublishedCustomTemplateByUser(profile.id);
           if (!latestTemplate) {
             setTemplate(null);
             setError('아직 공개된 템플릿이 없어요.');
@@ -48,16 +49,24 @@ const publicTemplateRoute = createRoute({
     }, [username]);
 
     return (
-      <div className="min-h-screen w-full bg-[#F5F5F5] flex flex-col items-center justify-center p-8">
-        {isLoading && <p className="text-[#757575] text-sm">템플릿을 불러오는 중...</p>}
-        {!isLoading && error && (
-          <div className="text-center">
-            <p className="text-lg font-semibold text-[#101010] mb-2">Oops!</p>
-            <p className="text-sm text-[#757575]">{error}</p>
+      <div className="relative min-h-screen w-full overflow-hidden bg-[#000]">
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="text-[#757575] text-sm">템플릿을 불러오는 중...</p>
           </div>
         )}
+
+        {!isLoading && error && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center bg-white/80 px-4 py-3 rounded-xl shadow">
+              <p className="text-lg font-semibold text-[#101010] mb-2">Oops!</p>
+              <p className="text-sm text-[#757575]">{error}</p>
+            </div>
+          </div>
+        )}
+
         {!isLoading && template && (
-          <div className="w-[360px] h-[640px] rounded-[32px] shadow-2xl overflow-hidden relative">
+          <>
             {template.isBackgroundColored && template.backgroundColor ? (
               <div className="absolute inset-0" style={{ backgroundColor: template.backgroundColor }} />
             ) : template.backgroundImageUrl ? (
@@ -69,45 +78,55 @@ const publicTemplateRoute = createRoute({
             ) : (
               <div className="absolute inset-0 bg-white" />
             )}
-            <div className="absolute inset-0 p-6 flex flex-col gap-4 overflow-hidden">
-              {template.items.map((item, index) => {
-              if (item.imageUrl) {
-                return (
-                  <img
-                    key={item.index ?? index}
-                    src={item.imageUrl}
-                    alt={`사용자 이미지 ${index + 1}`}
-                    className="w-full rounded-2xl object-cover"
-                    style={{ transform: `rotate(${item.rotation ?? 0}deg)` }}
-                  />
-                );
-              }
 
-              if (item.text) {
+            <div className="absolute inset-0 overflow-hidden">
+              {mapTemplateItemsToRender(template.items).map((item) => {
+                if (item.type === 'image') {
+                  return (
+                    <img
+                      key={item.key}
+                      src={item.src}
+                      alt="사용자 이미지"
+                      className="absolute object-cover rounded-2xl"
+                      style={{
+                        left: `${item.style.left}px`,
+                        top: `${item.style.top}px`,
+                        width: item.style.width ? `${item.style.width}px` : undefined,
+                        height: item.style.height ? `${item.style.height}px` : undefined,
+                        transform: `rotate(${item.style.rotation}deg)`,
+                        transformOrigin: 'center',
+                        zIndex: item.style.zIndex,
+                      }}
+                    />
+                  );
+                }
+
                 return (
                   <p
-                    key={item.index ?? index}
-                    className="text-center"
+                    key={item.key}
+                    className="absolute text-center"
                     style={{
+                      left: `${item.style.left}px`,
+                      top: `${item.style.top}px`,
                       fontSize: `${item.font?.size ?? 18}px`,
                       fontWeight: item.font?.weight ?? 600,
                       color: item.font?.color ?? '#FFFFFF',
                       fontFamily: item.font?.family ?? 'classic',
+                      transform: `rotate(${item.style.rotation}deg)`,
+                      transformOrigin: 'center',
+                      zIndex: item.style.zIndex,
                     }}
                   >
                     {item.text}
                   </p>
                 );
-                }
-
-                return null;
               })}
             </div>
-          </div>
+          </>
         )}
       </div>
     );
   },
-});
+  });
 
 export default publicTemplateRoute;

@@ -5,15 +5,14 @@ import {
   useOverlayEditor,
   DEFAULT_IMAGE_SIZE,
   getImageScalePercentMax,
-} from '../../hooks/useOverlayEditor';
-import type { TemplateItem, DefaultTemplate } from '../../types/templates';
-import type { Overlay } from '../../hooks/useOverlayEditor';
-import { createCustomTemplate } from '../../api/templateAPI';
-import { uploadTemplateAsset } from '../../api/storageAPI';
+} from '../../hooks/overlay/useOverlayEditor';
+import type { DefaultTemplate } from '../../types/templates';
+import type { Overlay } from '../../types/overlay';
 import { useAuth } from '../../hooks/useAuth';
-// import router from '../router';
+import router from '../router';
 import { useTemplateSelectionStore } from '../../stores/templateSelectionStore';
 import { HexColorPicker } from 'react-colorful';
+import { useTemplateEditorStore, type TemplateEditorSnapshot } from '../../stores/templateEditorStore';
 
 const DEFAULT_TEXT_FONT_SIZE = 18;
 const DEFAULT_TEXT_FONT_WEIGHT = 600;
@@ -141,6 +140,8 @@ const editTemplatesRoute = createRoute({
   getParentRoute: () => templatesRoute,
   component: function EditTemplatesPage() {
     const selectedTemplate = useTemplateSelectionStore((state) => state.selectedTemplate);
+    const replaceDraft = useTemplateEditorStore((state) => state.replaceDraft);
+    const commitDraft = useTemplateEditorStore((state) => state.commitDraft);
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
@@ -245,73 +246,36 @@ const editTemplatesRoute = createRoute({
       setSaveError(null);
 
       try {
-        const backgroundImageUrl = backgroundFile
-          ? await uploadTemplateAsset({
-              file: backgroundFile,
-              userId: user.id,
-              folder: 'backgrounds',
-            })
-          : previewImage ?? undefined;
-        const shouldUseColor = Boolean(isBackgroundColored && backgroundColor && !backgroundImageUrl);
+        const snapshot: TemplateEditorSnapshot = {
+          backgroundImageUrl: previewImage,
+          backgroundFile,
+          backgroundColor,
+          isBackgroundColored,
+          overlays: overlays.map((overlay) => ({ ...overlay })),
+        };
 
-        const items: TemplateItem[] = await Promise.all(
-          overlays.map(async (overlay, index) => {
-            const base = {
-              index,
-              coordinates: { x: overlay.x, y: overlay.y },
-            };
-
-            if (overlay.type === 'image') {
-              const imageUrl =
-                overlay.file && user
-                  ? await uploadTemplateAsset({
-                      file: overlay.file,
-                      userId: user.id,
-                      folder: 'overlays',
-                    })
-                  : overlay.image;
-
-              return {
-                ...base,
-                imageUrl,
-                rotation: overlay.rotation ?? 0,
-                size: {
-                  width: (overlay.baseWidth * overlay.scalePercent) / 100,
-                  height: (overlay.baseHeight * overlay.scalePercent) / 100,
-                },
-              };
-            }
-
-            return {
-              ...base,
-              text: overlay.text,
-              font: {
-                size: overlay.fontSize,
-                weight: overlay.fontWeight,
-                color: '#000000',
-                family: overlay.fontFamily ?? 'classic',
-              },
-            };
-          })
-        );
-
-        await createCustomTemplate({
-          userId: user.id,
-          backgroundImageUrl,
-          backgroundColor: shouldUseColor ? backgroundColor ?? undefined : undefined,
-          isBackgroundColored: shouldUseColor,
-          items,
-        });
+        replaceDraft(snapshot, selectedTemplate?.id ?? null);
+        commitDraft(selectedTemplate?.id ?? null);
 
         setDidSave(true);
-        // router.navigate({ to: '/templates/select' });
+        router.navigate({ to: '/templates/preview' });
       } catch (error) {
         setDidSave(false);
         setSaveError(error instanceof Error ? error.message : '템플릿 저장에 실패했습니다.');
       } finally {
         setIsSaving(false);
       }
-    }, [user, overlays, previewImage, backgroundFile, isBackgroundColored, backgroundColor]);
+    }, [
+      user,
+      overlays,
+      previewImage,
+      backgroundFile,
+      isBackgroundColored,
+      backgroundColor,
+      replaceDraft,
+      commitDraft,
+      selectedTemplate?.id,
+    ]);
 
     const handleSelectColor = useCallback(
       (color: string) => {
@@ -657,21 +621,21 @@ const editTemplatesRoute = createRoute({
             }}
             className="px-4 py-2 bg-[#2C2C2C] text-white rounded-lg transition-colors shadow-lg"
           >
-            {previewImage || isBackgroundColored ? '배경 수정' : '배경 추가'}
+            배경
           </button>
           <button
             onClick={triggerOverlaySelect}
             disabled={overlays.length >= maxOverlays}
             className="px-4 py-2 bg-[#2C2C2C] text-white rounded-lg transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            이미지 {overlayImageCount > 0 && `(${overlayImageCount}/${maxOverlays})`}
+            링크 {overlayImageCount > 0 && `(${overlayImageCount}/${maxOverlays})`}
           </button>
           <button
             onClick={() => addTextOverlay()}
             disabled={overlays.length >= maxOverlays}
             className="px-4 py-2 bg-[#2C2C2C] text-white rounded-lg transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            텍스트 추가
+            텍스트
           </button>
 
           <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
@@ -680,7 +644,7 @@ const editTemplatesRoute = createRoute({
               disabled={!canSave || Boolean(editingOverlayId)}
               className="px-6 py-3 bg-[#FF5C00] text-white font-semibold rounded-full shadow-lg disabled:bg-[#FFC6A3] disabled:cursor-not-allowed transition-colors"
             >
-              {isSaving ? '저장 중...' : '저장'}
+              다음
             </button>
             {!user && <p className="text-xs text-red-500">로그인이 필요합니다.</p>}
             {saveError && <p className="text-xs text-red-500">{saveError}</p>}

@@ -7,6 +7,7 @@ create table if not exists public.custom_templates (
   background_color text,
   is_background_colored boolean not null default false,
   items jsonb not null default '[]'::jsonb,
+  is_published boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -32,3 +33,7 @@ for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+create policy "Allow read published custom templates"
+on public.custom_templates
+for select
+using (is_published = true);
