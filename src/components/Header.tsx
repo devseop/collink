@@ -1,16 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import ReactModal from 'react-modal';
 import IconArrowLeft from '../assets/icons/ic_arrow_left.svg?react';
-import { useTemplateEditorStore } from '../stores/templateEditorStore';
 
-// Register the app element for accessibility; guard for non-browser environments
+type HeaderProps = {
+  useConfirmOnBack?: boolean;
+  confirmTitle?: string;
+  confirmMessage?: string;
+  onConfirmBack?: () => void;
+};
+
+// Register once for accessibility
 if (typeof document !== 'undefined') {
   ReactModal.setAppElement('#root');
 }
 
-const Header = () => {
-  const overlays = useTemplateEditorStore((state) => state.draft.overlays);
-  const hasDraft = useMemo(() => overlays.length > 0, [overlays.length]);
+const Header = ({
+  useConfirmOnBack = false,
+  confirmTitle = '이전으로 돌아갈까요?',
+  confirmMessage = '지금 돌아가면 현재 작업 중인 내용이 삭제됩니다.',
+  onConfirmBack,
+}: HeaderProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
@@ -20,7 +29,7 @@ const Header = () => {
   }, []);
 
   const handleGoBack = () => {
-    if (hasDraft) {
+    if (useConfirmOnBack) {
       setIsModalOpen(true);
       return;
     }
@@ -29,6 +38,10 @@ const Header = () => {
 
   const handleConfirm = () => {
     setIsModalOpen(false);
+    if (onConfirmBack) {
+      onConfirmBack();
+      return;
+    }
     history.back();
   };
 
@@ -42,38 +55,38 @@ const Header = () => {
         </button>
       </div>
 
-      <ReactModal
-        isOpen={isModalOpen}
-        onRequestClose={handleCancel}
-        className="fixed left-1/2 top-1/2 w-[320px] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl outline-none"
-        overlayClassName="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
-        closeTimeoutMS={120}
-      >
-        <div className="flex flex-col gap-4">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-[#1F1F1F]">작업을 종료할까요?</h2>
-            <p className="text-sm text-[#4B4B4B] leading-relaxed">
-              현재 작업 중인 템플릿이 있습니다. 이전으로 이동하면 작업 중인 템플릿이 사라집니다. 이전으로 이동하시겠습니까?
-            </p>
+      {useConfirmOnBack && (
+        <ReactModal
+          isOpen={isModalOpen}
+          onRequestClose={handleCancel}
+          className="fixed left-1/2 top-1/2 w-[320px] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white px-6 shadow-xl outline-none"
+          overlayClassName="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
+          closeTimeoutMS={120}
+        >
+          <div className="flex flex-col gap-4 pt-6">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-[#1F1F1F] text-center">{confirmTitle}</h2>
+              <p className="text-sm text-[#4B4B4B] leading-relaxed text-center">{confirmMessage}</p>
+            </div>
+            <div className="flex flex-col justify-between">
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className="text-[#FF4322] px-3 py-4 text-[14px] font-semibold"
+              >
+                돌아가기
+              </button>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="px-3 py-4 text-[14px] font-regular text-[#1F1F1F]"
+              >
+                계속 수정하기
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="rounded-xl border border-[#E5E5E5] px-3 py-2 text-sm font-semibold text-[#1F1F1F] hover:bg-[#F8F8F8] transition-colors"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              className="rounded-xl bg-[#FF5C00] px-3 py-2 text-sm font-semibold text-white hover:bg-[#e95500] transition-colors"
-            >
-              확인
-            </button>
-          </div>
-        </div>
-      </ReactModal>
+        </ReactModal>
+      )}
     </>
   );
 };

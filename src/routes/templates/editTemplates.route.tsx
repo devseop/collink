@@ -1,5 +1,5 @@
 import { createRoute } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import templatesRoute from './templates.route';
 import { useOverlayEditor, DEFAULT_IMAGE_SIZE, getImageScalePercentMax } from '../../hooks/overlay/useOverlayEditor';
 import type { DefaultTemplate } from '../../types/templates';
@@ -131,6 +131,41 @@ const mapTemplateToEditorState = (template: DefaultTemplate | null): EditorIniti
   };
 };
 
+const overlaysEqual = (a: Overlay[], b: Overlay[]) => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const left = a[i];
+    const right = b[i];
+    if (left.type !== right.type) return false;
+    if (left.id !== right.id || left.x !== right.x || left.y !== right.y) return false;
+    if (left.type === 'image' && right.type === 'image') {
+      if (
+        left.image !== right.image ||
+        left.file !== right.file ||
+        left.rotation !== right.rotation ||
+        left.baseWidth !== right.baseWidth ||
+        left.baseHeight !== right.baseHeight ||
+        left.scalePercent !== right.scalePercent ||
+        left.linkUrl !== right.linkUrl
+      ) {
+        return false;
+      }
+    } else if (left.type === 'text' && right.type === 'text') {
+      if (
+        left.text !== right.text ||
+        left.fontSize !== right.fontSize ||
+        left.fontWeight !== right.fontWeight ||
+        left.fontFamily !== right.fontFamily ||
+        left.underline !== right.underline ||
+        left.strikethrough !== right.strikethrough
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+};
+
 const editTemplatesRoute = createRoute({
   path: 'edit',
   getParentRoute: () => templatesRoute,
@@ -140,6 +175,7 @@ const editTemplatesRoute = createRoute({
     const commitDraft = useTemplateEditorStore((state) => state.commitDraft);
     const draftSnapshot = useTemplateEditorStore((state) => state.draft);
     const committedSnapshot = useTemplateEditorStore((state) => state.committed);
+    const initialSnapshotRef = useRef<TemplateEditorSnapshot | null>(null);
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
@@ -215,6 +251,36 @@ const editTemplatesRoute = createRoute({
     });
 
     const colorPickerValue = backgroundColor ?? '#FFFFFF';
+    // Capture initial editor state once for change detection
+    useEffect(() => {
+      if (initialSnapshotRef.current) return;
+      initialSnapshotRef.current = {
+        backgroundImageUrl: previewImage,
+        backgroundFile,
+        backgroundColor,
+        isBackgroundColored,
+        overlays: overlays.map((overlay) => ({ ...overlay })),
+      };
+    }, [backgroundColor, backgroundFile, isBackgroundColored, overlays, previewImage]);
+
+    const hasChanges = useMemo(() => {
+      const initial = initialSnapshotRef.current;
+      if (!initial) return false;
+      const current: TemplateEditorSnapshot = {
+        backgroundImageUrl: previewImage,
+        backgroundFile,
+        backgroundColor,
+        isBackgroundColored,
+        overlays,
+      };
+      const backgroundDiff =
+        initial.backgroundImageUrl !== current.backgroundImageUrl ||
+        initial.backgroundFile !== current.backgroundFile ||
+        initial.backgroundColor !== current.backgroundColor ||
+        initial.isBackgroundColored !== current.isBackgroundColored;
+      const overlayDiff = !overlaysEqual(initial.overlays, current.overlays);
+      return backgroundDiff || overlayDiff;
+    }, [backgroundColor, backgroundFile, isBackgroundColored, overlays, previewImage]);
 
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -389,7 +455,7 @@ const editTemplatesRoute = createRoute({
         onMouseDown={handleBackgroundPointerDown}
         onTouchStart={handleBackgroundPointerDown}
       >
-        <Header />
+        <Header useConfirmOnBack={hasChanges} />
         {previewImage && (
           <div className="fixed inset-0 z-0">
             <img src={previewImage} alt="미리보기" className="w-full h-full object-cover" />
