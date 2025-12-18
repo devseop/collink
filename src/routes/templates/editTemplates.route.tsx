@@ -1,11 +1,7 @@
 import { createRoute } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import templatesRoute from './templates.route';
-import {
-  useOverlayEditor,
-  DEFAULT_IMAGE_SIZE,
-  getImageScalePercentMax,
-} from '../../hooks/overlay/useOverlayEditor';
+import { useOverlayEditor, DEFAULT_IMAGE_SIZE, getImageScalePercentMax } from '../../hooks/overlay/useOverlayEditor';
 import type { DefaultTemplate } from '../../types/templates';
 import type { Overlay } from '../../types/overlay';
 import { useAuth } from '../../hooks/useAuth';
@@ -13,32 +9,22 @@ import router from '../router';
 import { useTemplateSelectionStore } from '../../stores/templateSelectionStore';
 import { HexColorPicker } from 'react-colorful';
 import { useTemplateEditorStore, type TemplateEditorSnapshot } from '../../stores/templateEditorStore';
+import {
+  DEFAULT_TEXT_FONT_FAMILY,
+  DEFAULT_TEXT_FONT_SIZE,
+  DEFAULT_TEXT_FONT_WEIGHT,
+  FALLBACK_POSITION,
+  IMAGE_SCALE_DEFAULT_PERCENT,
+  TEXT_FONT_FAMILIES,
+  TEXT_FONT_SIZES,
+  TEXT_FONT_WEIGHTS,
+} from '../../constants/templates';
+import IconArrowRight from '../../assets/icons/ic_arrow_right.svg?react';
+import IconBackground from '../../assets/icons/ic_background.svg?react';
+import IconLink from '../../assets/icons/ic_link.svg?react';
+import IconImage from '../../assets/icons/ic_image.svg?react';
+import Header from '../../components/Header';
 
-const DEFAULT_TEXT_FONT_SIZE = 18;
-const DEFAULT_TEXT_FONT_WEIGHT = 600;
-const FALLBACK_POSITION = { x: 140, y: 140 };
-
-const TEXT_FONT_FAMILIES = [
-  { label: 'Classic', value: 'classic' },
-  { label: 'Italic', value: 'italic' },
-  { label: 'Comic', value: 'comic' },
-];
-
-const TEXT_FONT_SIZES = [
-  { label: '아주 작게', value: 11 },
-  { label: '작게', value: 13 },
-  { label: '보통', value: 17 },
-  { label: '크게', value: 24 },
-  { label: '아주 크게', value: 28 },
-];
-
-const TEXT_FONT_WEIGHTS = [
-  { label: '얇게', value: 200 },
-  { label: '보통', value: 500 },
-  { label: '굵게', value: 900 },
-];
-
-const IMAGE_SCALE_DEFAULT_PERCENT = 100;
 
 const clampScalePercent = (value: number, maxPercent: number, minPercent = IMAGE_SCALE_DEFAULT_PERCENT) =>
   Math.max(minPercent, Math.min(value, Math.max(maxPercent, minPercent)));
@@ -66,6 +52,13 @@ const deriveScalePercentFromSize = (width: number, height: number, maxPercent: n
   return clampScalePercent(Math.round(rawPercent), maxPercent);
 };
 
+const getTextDecorationValue = (underline?: boolean, strikethrough?: boolean) => {
+  const parts = [];
+  if (underline) parts.push('underline');
+  if (strikethrough) parts.push('line-through');
+  return parts.length ? parts.join(' ') : 'none';
+};
+
 type EditorInitialState = {
   backgroundImageUrl: string | null;
   backgroundColor: string | null;
@@ -84,13 +77,13 @@ const mapTemplateToEditorState = (template: DefaultTemplate | null): EditorIniti
   }
 
   const overlays: Overlay[] = [];
-  const items = template.items ?? [];
+    const items = template.items ?? [];
 
-  items.forEach((item) => {
-    const basePosition = {
-      x: item.coordinates?.x ?? FALLBACK_POSITION.x,
-      y: item.coordinates?.y ?? FALLBACK_POSITION.y,
-    };
+    items.forEach((item) => {
+      const basePosition = {
+        x: item.coordinates?.x ?? FALLBACK_POSITION.x,
+        y: item.coordinates?.y ?? FALLBACK_POSITION.y,
+      };
 
     if (item.imageUrl) {
       const templateWidth = item.size?.width ?? DEFAULT_IMAGE_SIZE;
@@ -108,6 +101,7 @@ const mapTemplateToEditorState = (template: DefaultTemplate | null): EditorIniti
         baseWidth,
         baseHeight,
         scalePercent,
+        linkUrl: item.linkUrl ?? undefined,
       });
       return;
     }
@@ -119,7 +113,9 @@ const mapTemplateToEditorState = (template: DefaultTemplate | null): EditorIniti
         text: item.text ?? '',
         fontSize: item.font?.size ?? DEFAULT_TEXT_FONT_SIZE,
         fontWeight: item.font?.weight ?? DEFAULT_TEXT_FONT_WEIGHT,
-        fontFamily: item.font?.family ?? 'classic',
+        fontFamily: item.font?.family ?? DEFAULT_TEXT_FONT_FAMILY,
+        underline: item.font?.decoration?.includes('underline'),
+        strikethrough: item.font?.decoration?.includes('line-through'),
         ...basePosition,
       });
     }
@@ -142,14 +138,44 @@ const editTemplatesRoute = createRoute({
     const selectedTemplate = useTemplateSelectionStore((state) => state.selectedTemplate);
     const replaceDraft = useTemplateEditorStore((state) => state.replaceDraft);
     const commitDraft = useTemplateEditorStore((state) => state.commitDraft);
+    const setDraft = useTemplateEditorStore((state) => state.setDraft);
+    const draftSnapshot = useTemplateEditorStore((state) => state.draft);
+    const committedSnapshot = useTemplateEditorStore((state) => state.committed);
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
     const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
-    const initialEditorState = useMemo(
-      () => mapTemplateToEditorState(selectedTemplate),
-      [selectedTemplate]
-    );
+    
+    const initialEditorState = useMemo(() => {
+      const hasCommitted =
+        committedSnapshot &&
+        (committedSnapshot.overlays.length > 0 ||
+          committedSnapshot.backgroundImageUrl ||
+          committedSnapshot.isBackgroundColored);
+      if (hasCommitted) {
+        return {
+          backgroundImageUrl: committedSnapshot!.backgroundImageUrl,
+          backgroundColor: committedSnapshot!.backgroundColor,
+          isBackgroundColored: committedSnapshot!.isBackgroundColored,
+          overlays: committedSnapshot!.overlays.map((overlay) => ({ ...overlay })),
+        };
+      }
+      const hasDraft =
+        draftSnapshot &&
+        (draftSnapshot.overlays.length > 0 ||
+          draftSnapshot.backgroundImageUrl ||
+          draftSnapshot.isBackgroundColored);
+      if (hasDraft) {
+        return {
+          backgroundImageUrl: draftSnapshot!.backgroundImageUrl,
+          backgroundColor: draftSnapshot!.backgroundColor,
+          isBackgroundColored: draftSnapshot!.isBackgroundColored,
+          overlays: draftSnapshot!.overlays.map((overlay) => ({ ...overlay })),
+        };
+      }
+      return mapTemplateToEditorState(selectedTemplate);
+    }, [committedSnapshot, draftSnapshot, selectedTemplate]);
+
     const { user } = useAuth();
     const {
       previewImage,
@@ -179,18 +205,32 @@ const editTemplatesRoute = createRoute({
       updateTextStyle,
       updateImageScalePercent,
       lastAddedImageOverlayId,
+      updateImageLink,
+      moveUp,
+      moveDown,
     } = useOverlayEditor({
       initialBackgroundImageUrl: initialEditorState.backgroundImageUrl,
       initialBackgroundColor: initialEditorState.backgroundColor,
       initialIsBackgroundColored: initialEditorState.isBackgroundColored,
       initialOverlays: initialEditorState.overlays,
     });
+
     const colorPickerValue = backgroundColor ?? '#FFFFFF';
+    // keep draft in sync so header can detect unsaved work
+    useEffect(() => {
+      setDraft({
+        backgroundImageUrl: previewImage,
+        backgroundFile,
+        backgroundColor,
+        isBackgroundColored,
+        overlays: overlays.map((overlay) => ({ ...overlay })),
+      });
+    }, [setDraft, previewImage, backgroundFile, backgroundColor, isBackgroundColored, overlays]);
 
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [didSave, setDidSave] = useState(false);
-    const overlayImageCount = overlays.filter((overlay) => overlay.type === 'image').length;
+
     const selectedImageOverlay = useMemo(
       () =>
         overlays.find(
@@ -199,20 +239,36 @@ const editTemplatesRoute = createRoute({
         ) ?? null,
       [overlays, selectedImageId]
     );
+
     const selectedTextOverlay = useMemo(
       () =>
         overlays.find(
-          (overlay): overlay is Overlay & { type: 'text' } =>
-            overlay.type === 'text' && overlay.id === selectedTextId
-        ) ?? null,
+      (overlay): overlay is Overlay & { type: 'text' } =>
+        overlay.type === 'text' && overlay.id === selectedTextId
+    ) ?? null,
       [overlays, selectedTextId]
     );
+
+    const [linkInputValue, setLinkInputValue] = useState('');
     const selectedImageScaleMax = selectedImageOverlay
       ? getImageScalePercentMax(selectedImageOverlay.baseWidth, selectedImageOverlay.baseHeight)
       : IMAGE_SCALE_DEFAULT_PERCENT;
     const selectedImageSizePercent = selectedImageOverlay
       ? clampScalePercent(selectedImageOverlay.scalePercent, selectedImageScaleMax)
       : IMAGE_SCALE_DEFAULT_PERCENT;
+
+    const selectedImageIndex = useMemo(
+      () => (selectedImageOverlay ? overlays.findIndex((overlay) => overlay.id === selectedImageOverlay.id) : -1),
+      [overlays, selectedImageOverlay]
+    );
+    const selectedTextIndex = useMemo(
+      () => (selectedTextOverlay ? overlays.findIndex((overlay) => overlay.id === selectedTextOverlay.id) : -1),
+      [overlays, selectedTextOverlay]
+    );
+    const canMoveImageUp = selectedImageIndex >= 0 && selectedImageIndex < overlays.length - 1;
+    const canMoveImageDown = selectedImageIndex > 0;
+    const canMoveTextUp = selectedTextIndex >= 0 && selectedTextIndex < overlays.length - 1;
+    const canMoveTextDown = selectedTextIndex > 0;
 
     useEffect(() => {
       if (!editingOverlayId) return;
@@ -228,6 +284,10 @@ const editTemplatesRoute = createRoute({
       setSelectedImageId(lastAddedImageOverlayId);
       setSelectedTextId(null);
     }, [lastAddedImageOverlayId]);
+
+    useEffect(() => {
+      setLinkInputValue(selectedImageOverlay?.linkUrl ?? '');
+    }, [selectedImageOverlay]);
 
     const handleSaveTemplate = useCallback(async () => {
       if (!user) {
@@ -320,8 +380,14 @@ const editTemplatesRoute = createRoute({
       [selectedImageId, selectedImageScaleMax, updateImageScalePercent]
     );
 
+    const handleLinkUrlConfirm = useCallback(() => {
+      if (!selectedImageOverlay) return;
+      const trimmed = linkInputValue.trim();
+      updateImageLink(selectedImageOverlay.id, trimmed || undefined);
+    }, [linkInputValue, selectedImageOverlay, updateImageLink]);
+
     const handleTextStyleChange = useCallback(
-      (style: { fontFamily?: string; fontSize?: number; fontWeight?: number }) => {
+      (style: { fontFamily?: string; fontSize?: number; fontWeight?: number; underline?: boolean; strikethrough?: boolean }) => {
         if (!selectedTextId) return;
         updateTextStyle(selectedTextId, style);
       },
@@ -334,11 +400,7 @@ const editTemplatesRoute = createRoute({
         onMouseDown={handleBackgroundPointerDown}
         onTouchStart={handleBackgroundPointerDown}
       >
-        {/* {!selectedTemplate && (
-          <div className="absolute top-6 left-1/2 z-40 -translate-x-1/2 bg-white/90 px-4 py-2 rounded-full shadow text-sm text-[#4B4B4B]">
-            기본 템플릿 없이 새롭게 시작합니다.
-          </div>
-        )} */}
+        <Header />
         {previewImage && (
           <div className="fixed inset-0 z-0">
             <img src={previewImage} alt="미리보기" className="w-full h-full object-cover" />
@@ -393,13 +455,23 @@ const editTemplatesRoute = createRoute({
                       onBlur={() => finishEditingTextOverlay()}
                       onMouseDown={(event) => event.stopPropagation()}
                       className="min-w-[140px] min-h-[48px] rounded-lg bg-white/90 border border-black/20 px-3 py-2 shadow-lg text-center focus:outline-none focus:ring-2 focus:ring-black"
-                      style={{ fontSize: `${overlay.fontSize}px`, fontWeight: overlay.fontWeight, fontFamily: overlay.fontFamily }}
+                      style={{
+                        fontSize: `${overlay.fontSize}px`,
+                        fontWeight: overlay.fontWeight,
+                        fontFamily: overlay.fontFamily,
+                        textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
+                      }}
                       placeholder="텍스트를 입력하세요"
                     />
                   ) : (
                     <div
                       className="min-w-[140px] min-h-[48px] rounded-lg bg-white/40 backdrop-blur-sm border border-white px-4 py-3 shadow-lg text-center cursor-text"
-                      style={{ fontSize: `${overlay.fontSize}px`, fontWeight: overlay.fontWeight, fontFamily: overlay.fontFamily }}
+                      style={{
+                        fontSize: `${overlay.fontSize}px`,
+                        fontWeight: overlay.fontWeight,
+                        fontFamily: overlay.fontFamily,
+                        textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
+                      }}
                       onClick={(event) => {
                         event.stopPropagation();
                         startEditingTextOverlay(overlay.id);
@@ -459,6 +531,31 @@ const editTemplatesRoute = createRoute({
             onTouchStart={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-[#101010]">순서</p>
+              <div className="flex gap-2">
+                <button
+                  className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    moveDown(selectedImageOverlay.id);
+                  }}
+                  disabled={!canMoveImageDown}
+                >
+                  뒤로
+                </button>
+                <button
+                  className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    moveUp(selectedImageOverlay.id);
+                  }}
+                  disabled={!canMoveImageUp}
+                >
+                  앞으로
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-[#101010]">이미지 회전</p>
               <span className="text-xs text-[#6B6B6B]">{Math.round(selectedImageOverlay.rotation ?? 0)}°</span>
             </div>
@@ -491,6 +588,35 @@ const editTemplatesRoute = createRoute({
               <span>default</span>
               <span>max</span>
             </div>
+            <div className="flex flex-col gap-2 pt-2">
+              <p className="text-sm font-semibold text-[#101010]">링크 추가</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={linkInputValue}
+                  onChange={(event) => setLinkInputValue(event.target.value)}
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      handleLinkUrlConfirm();
+                    }
+                  }}
+                  placeholder="https://example.com"
+                  className="flex-1 rounded-lg border border-[#D9D9D9] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                />
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleLinkUrlConfirm();
+                  }}
+                  className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold"
+                >
+                  확인
+                </button>
+              </div>
+              <p className="text-[11px] text-[#A0A0A0]">링크가 있으면 공개 화면에서 클릭할 수 있어요.</p>
+            </div>
           </div>
         )}
         {selectedTextOverlay && (
@@ -499,6 +625,31 @@ const editTemplatesRoute = createRoute({
             onMouseDown={(event) => event.stopPropagation()}
             onTouchStart={(event) => event.stopPropagation()}
           >
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-[#101010]">순서</p>
+              <div className="flex gap-2">
+                <button
+                  className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    moveDown(selectedTextOverlay.id);
+                  }}
+                  disabled={!canMoveTextDown}
+                >
+                  뒤로
+                </button>
+                <button
+                  className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    moveUp(selectedTextOverlay.id);
+                  }}
+                  disabled={!canMoveTextUp}
+                >
+                  앞으로
+                </button>
+              </div>
+            </div>
             <div className="flex flex-col gap-2">
               <p className="text-xs font-semibold text-[#101010]">폰트 스타일</p>
               <div className="flex gap-2">
@@ -551,6 +702,31 @@ const editTemplatesRoute = createRoute({
                     {weight.label}
                   </button>
                 ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold text-[#101010]">꾸미기</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  className={`px-3 py-2 rounded-lg border text-xs ${
+                    selectedTextOverlay.underline
+                      ? 'bg-black text-white border-black'
+                      : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
+                  }`}
+                  onClick={() => handleTextStyleChange({ underline: !selectedTextOverlay.underline })}
+                >
+                  밑줄
+                </button>
+                <button
+                  className={`px-3 py-2 rounded-lg border text-xs ${
+                    selectedTextOverlay.strikethrough
+                      ? 'bg-black text-white border-black'
+                      : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
+                  }`}
+                  onClick={() => handleTextStyleChange({ strikethrough: !selectedTextOverlay.strikethrough })}
+                >
+                  취소선
+                </button>
               </div>
             </div>
           </div>
@@ -619,32 +795,43 @@ const editTemplatesRoute = createRoute({
               setBackgroundMode('image');
               setShowBackgroundOptions((prev) => !prev);
             }}
-            className="px-4 py-2 bg-[#2C2C2C] text-white rounded-lg transition-colors shadow-lg"
+            className="px-3 py-3 transition-colors"
+            aria-label="배경 이미지 추가"
           >
-            배경
+            <IconBackground className="w-5 h-5" aria-hidden />
           </button>
           <button
             onClick={triggerOverlaySelect}
             disabled={overlays.length >= maxOverlays}
-            className="px-4 py-2 bg-[#2C2C2C] text-white rounded-lg transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-3 transition-colors"
+            aria-label="링크 추가"
           >
-            링크 {overlayImageCount > 0 && `(${overlayImageCount}/${maxOverlays})`}
+            <IconLink className="w-5 h-5" aria-hidden />
+          </button>
+          <button
+            onClick={triggerOverlaySelect}
+            disabled={overlays.length >= maxOverlays}
+            className="px-3 py-3 transition-colors"
+            aria-label="이미지 추가"
+          >
+            <IconImage className="w-5 h-5" aria-hidden />
           </button>
           <button
             onClick={() => addTextOverlay()}
             disabled={overlays.length >= maxOverlays}
-            className="px-4 py-2 bg-[#2C2C2C] text-white rounded-lg transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-3 transition-colors font-medium text-md"
           >
-            텍스트
+            Aa
           </button>
 
           <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
             <button
               onClick={handleSaveTemplate}
               disabled={!canSave || Boolean(editingOverlayId)}
-              className="px-6 py-3 bg-[#FF5C00] text-white font-semibold rounded-full shadow-lg disabled:bg-[#FFC6A3] disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-3 bg-[#B1FF8D] text-white font-semibold rounded-full shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              aria-label="다음"
             >
-              다음
+              <IconArrowRight className="w-5 h-5" aria-hidden />
             </button>
             {!user && <p className="text-xs text-red-500">로그인이 필요합니다.</p>}
             {saveError && <p className="text-xs text-red-500">{saveError}</p>}

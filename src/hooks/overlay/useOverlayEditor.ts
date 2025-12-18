@@ -80,6 +80,8 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
         fontSize: 18,
         fontWeight: 600,
         fontFamily: 'classic',
+        underline: false,
+        strikethrough: false,
         x: 140 + prev.length * 20,
         y: 140 + prev.length * 20,
       };
@@ -101,7 +103,10 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
     );
   }, []);
   const updateTextStyle = useCallback(
-    (overlayId: string, style: Partial<Pick<TextOverlay, 'fontFamily' | 'fontSize' | 'fontWeight'>>) => {
+    (
+      overlayId: string,
+      style: Partial<Pick<TextOverlay, 'fontFamily' | 'fontSize' | 'fontWeight' | 'underline' | 'strikethrough'>>
+    ) => {
       setOverlays((prev) =>
         prev.map((overlay) =>
           overlay.id === overlayId && overlay.type === 'text'
@@ -169,6 +174,19 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
     setEditingOverlayId(null);
   }, []);
 
+  const updateImageLink = useCallback((overlayId: string, linkUrl?: string) => {
+    setOverlays((prev) =>
+      prev.map((overlay) =>
+        overlay.id === overlayId && overlay.type === 'image'
+          ? {
+              ...overlay,
+              linkUrl,
+            }
+          : overlay
+      )
+    );
+  }, []);
+
   useEffect(() => {
     if (initialBackgroundImageUrl !== undefined) {
       setPreviewImage(initialBackgroundImageUrl ?? null);
@@ -194,6 +212,22 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
       setOverlays(initialOverlays.map(normalizeOverlay));
     }
   }, [initialOverlays, normalizeOverlay]);
+
+  const moveOverlay = useCallback((overlayId: string, delta: 1 | -1) => {
+    setOverlays((prev) => {
+      const index = prev.findIndex((overlay) => overlay.id === overlayId);
+      if (index < 0) return prev;
+      const targetIndex = index + delta;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next;
+    });
+  }, []);
+
+  const moveUp = useCallback((overlayId: string) => moveOverlay(overlayId, 1), [moveOverlay]);
+
+  const moveDown = useCallback((overlayId: string) => moveOverlay(overlayId, -1), [moveOverlay]);
 
   return {
     previewImage,
@@ -224,6 +258,9 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
     updateImageScalePercent,
     updateTextStyle,
     lastAddedImageOverlayId,
+    updateImageLink,
+    moveUp,
+    moveDown,
   };
 }
 

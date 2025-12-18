@@ -15,6 +15,7 @@ export type TemplateItemFont = {
   weight: number;
   color: string;
   family: string;
+  decoration?: 'none' | 'underline' | 'line-through' | 'underline line-through';
 };
 
 export type TemplateItem = {
@@ -37,6 +38,7 @@ export type DefaultTemplate = {
   items?: TemplateItem[];
   isBackgroundColored?: boolean;
   backgroundColor?: string;
+  animationType?: 'default' | 'spread' | 'collage';
 };
 
 export type UserTemplate = {
@@ -48,6 +50,7 @@ export type UserTemplate = {
   isBackgroundColored?: boolean;
   backgroundColor?: string;
   isPublished?: boolean;
+  animationType?: 'default' | 'spread' | 'collage';
 };
 
 export type Template = DefaultTemplate | UserTemplate;

@@ -7,6 +7,7 @@ export type TemplateEditorSnapshot = {
   backgroundColor: string | null;
   isBackgroundColored: boolean;
   overlays: Overlay[];
+  animationType?: 'default' | 'spread' | 'collage';
 };
 
 type TemplateEditorState = {
@@ -31,6 +32,7 @@ const createEmptySnapshot = (): TemplateEditorSnapshot => ({
   backgroundColor: null,
   isBackgroundColored: false,
   overlays: [],
+  animationType: 'default',
 });
 
 const cloneSnapshot = (snapshot: TemplateEditorSnapshot): TemplateEditorSnapshot => ({
@@ -39,6 +41,7 @@ const cloneSnapshot = (snapshot: TemplateEditorSnapshot): TemplateEditorSnapshot
   backgroundColor: snapshot.backgroundColor,
   isBackgroundColored: snapshot.isBackgroundColored,
   overlays: snapshot.overlays.map((overlay) => ({ ...overlay })),
+  animationType: snapshot.animationType ?? 'default',
 });
 
 export const useTemplateEditorStore = create<TemplateEditorState>((set) => ({
@@ -48,7 +51,9 @@ export const useTemplateEditorStore = create<TemplateEditorState>((set) => ({
   setDraft: (updater) =>
     set((state) => {
       const nextDraft =
-        typeof updater === 'function' ? (updater as (draft: TemplateEditorSnapshot) => TemplateEditorSnapshot)(state.draft) : { ...state.draft, ...updater };
+        typeof updater === 'function'
+          ? (updater as (draft: TemplateEditorSnapshot) => TemplateEditorSnapshot)(state.draft)
+          : { ...state.draft, ...updater };
       return { draft: { ...nextDraft, overlays: [...nextDraft.overlays] } };
     }),
   replaceDraft: (snapshot, sourceTemplateId = null) =>

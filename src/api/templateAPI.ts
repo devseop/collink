@@ -40,6 +40,7 @@ type CustomTemplateRow = {
   created_at?: string;
   is_published?: boolean | null;
   category?: Category | null;
+  animation_type?: 'default' | 'spread' | 'collage' | null;
 };
 
 type CustomTemplateItemRow = {
@@ -62,6 +63,7 @@ type CustomTemplateItemRow = {
   font_color?: string | null;
   link_url?: string | null;
   has_link?: boolean | null;
+  text_decoration?: string | null;
 };
 
 export type CustomTemplatePayload = {
@@ -74,6 +76,14 @@ export type CustomTemplatePayload = {
   isPublished?: boolean;
   sourceTemplateId?: string | null;
   category?: Category | null;
+  animationType?: 'default' | 'spread' | 'collage';
+};
+
+const getTextDecorationValue = (options?: { underline?: boolean; strikethrough?: boolean }) => {
+  const parts = [];
+  if (options?.underline) parts.push('underline');
+  if (options?.strikethrough) parts.push('line-through');
+  return parts.join(' ') || null;
 };
 
 export async function createCustomTemplate(payload: CustomTemplatePayload) {
@@ -96,6 +106,7 @@ export async function createCustomTemplate(payload: CustomTemplatePayload) {
       is_background_colored: payload.isBackgroundColored ?? false,
       is_published: payload.isPublished ?? false,
       category: payload.category ?? null,
+      animation_type: payload.animationType ?? 'default',
     })
     .select('id')
     .single();
@@ -123,6 +134,10 @@ export async function createCustomTemplate(payload: CustomTemplatePayload) {
       font_color: item.font?.color ?? null,
       link_url: item.linkUrl ?? null,
       has_link: item.hasLink ?? null,
+      text_decoration: getTextDecorationValue({
+        underline: item.font?.decoration?.includes('underline'),
+        strikethrough: item.font?.decoration?.includes('line-through'),
+      }),
     }));
 
     const { error: insertItemsError } = await supabase
@@ -146,6 +161,7 @@ export type PublicTemplate = {
   items: TemplateItem[];
   isPublished?: boolean;
   category?: Category | null;
+  animationType?: 'default' | 'spread' | 'collage';
 };
 
 export async function getLatestPublishedCustomTemplateByUser(
@@ -153,7 +169,7 @@ export async function getLatestPublishedCustomTemplateByUser(
 ): Promise<PublicTemplate | null> {
   const { data, error } = await supabase
     .from('custom_templates')
-    .select('id, user_id, background_image_url, background_color, is_background_colored, is_published, category')
+    .select('id, user_id, background_image_url, background_color, is_background_colored, is_published, category, animation_type')
     .eq('user_id', userId)
     .eq('is_published', true)
     .order('created_at', { ascending: false })
@@ -198,6 +214,7 @@ export async function getLatestPublishedCustomTemplateByUser(
           weight: item.font_weight ?? 600,
           color: item.font_color ?? '#000000',
           family: item.font_family ?? 'classic',
+          decoration: item.text_decoration as 'underline' | 'line-through' | 'none' | 'underline line-through' | undefined,
         }
       : undefined,
     rotation: item.rotation ?? 0,
@@ -209,6 +226,7 @@ export async function getLatestPublishedCustomTemplateByUser(
     backgroundImageUrl: data.background_image_url ?? undefined,
     backgroundColor: data.background_color ?? undefined,
     isBackgroundColored: data.is_background_colored ?? undefined,
+    animationType: data.animation_type ?? 'default',
     items,
     isPublished: data.is_published ?? undefined,
     category: data.category ?? undefined,

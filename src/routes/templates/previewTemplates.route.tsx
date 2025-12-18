@@ -7,6 +7,16 @@ import { useAuth } from '../../hooks/useAuth';
 import { uploadTemplateAsset } from '../../api/storageAPI';
 import { createCustomTemplate } from '../../api/templateAPI';
 import type { TemplateItem } from '../../types/templates';
+import type { Overlay } from '../../types/overlay';
+
+type AnimationType = 'default' | 'spread' | 'collage';
+
+const getTextDecorationValue = (underline?: boolean, strikethrough?: boolean) => {
+  const parts = [];
+  if (underline) parts.push('underline');
+  if (strikethrough) parts.push('line-through');
+  return parts.length ? parts.join(' ') : 'none';
+};
 
 const previewTemplatesRoute = createRoute({
   path: 'preview',
@@ -18,6 +28,11 @@ const previewTemplatesRoute = createRoute({
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [didSave, setDidSave] = useState(false);
+    const [animationType, setAnimationType] = useState<AnimationType>(
+      (committed?.animationType as AnimationType | undefined) ?? 'default'
+    );
+    const [isAnimationActive, setIsAnimationActive] = useState(false);
+    const [viewportCenter, setViewportCenter] = useState({ x: 0, y: 0 });
 
     useEffect(() => {
       if (!committed && !didSave) {
@@ -32,6 +47,85 @@ const previewTemplatesRoute = createRoute({
       committed,
       isSaving,
     ]);
+
+    useEffect(() => {
+      const updateCenter = () => {
+        if (typeof window === 'undefined') return;
+        setViewportCenter({
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 2,
+        });
+      };
+      updateCenter();
+      window.addEventListener('resize', updateCenter);
+      return () => window.removeEventListener('resize', updateCenter);
+    }, []);
+
+    const triggerAnimation = useCallback(
+      (nextType?: AnimationType) => {
+        if (nextType) {
+          setAnimationType(nextType);
+        }
+        setIsAnimationActive(false);
+        // allow initial state to render, then activate transition
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => setIsAnimationActive(true));
+        });
+      },
+      []
+    );
+
+    const computePositionStyle = useCallback(
+      (overlay: Overlay, index: number) => {
+        const rotation = overlay.type === 'image' ? overlay.rotation ?? 0 : 0;
+        const target = {
+          left: `${overlay.x}px`,
+          top: `${overlay.y}px`,
+          opacity: 1,
+          transform: `rotate(${rotation}deg)`,
+        } as const;
+
+        if (animationType === 'default') {
+          return target;
+        }
+
+        if (animationType === 'spread') {
+          const transition = 'left 700ms ease, top 700ms ease, opacity 700ms ease, transform 700ms ease';
+          if (!isAnimationActive) {
+            return {
+              left: `${viewportCenter.x}px`,
+              top: `${viewportCenter.y}px`,
+              opacity: 0,
+              transform: `scale(0.9) rotate(${rotation}deg)`,
+            };
+          }
+          return { ...target, transition };
+        }
+
+        // collage
+        const delayMs = index * 160;
+        const transition = `opacity 500ms ease ${delayMs}ms, transform 500ms ease ${delayMs}ms`;
+        if (!isAnimationActive) {
+          return {
+            ...target,
+            opacity: 0,
+            transform: `scale(0.95) rotate(${rotation}deg)`,
+          };
+        }
+        return { ...target, transition };
+      },
+      [animationType, isAnimationActive, viewportCenter.x, viewportCenter.y]
+    );
+
+    const normalizeLinkUrl = useCallback((value?: string | null) => {
+      if (!value) return undefined;
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      if (/^https?:\/\//i.test(trimmed)) {
+        return trimmed;
+      }
+      return `https://${trimmed}`;
+    }, []);
 
     const handleSave = useCallback(async () => {
       if (!committed || !user) {
@@ -69,10 +163,13 @@ const previewTemplatesRoute = createRoute({
                       folder: 'overlays',
                     })
                   : overlay.image;
+              const linkUrl = normalizeLinkUrl(overlay.linkUrl);
 
               return {
                 ...base,
                 imageUrl,
+                linkUrl,
+                hasLink: Boolean(linkUrl),
                 rotation: overlay.rotation ?? 0,
                 size: {
                   width: (overlay.baseWidth * overlay.scalePercent) / 100,
@@ -89,6 +186,7 @@ const previewTemplatesRoute = createRoute({
                 weight: overlay.fontWeight,
                 color: '#000000',
                 family: overlay.fontFamily ?? 'classic',
+                decoration: getTextDecorationValue(overlay.underline, overlay.strikethrough) as 'underline' | 'line-through' | 'none' | 'underline line-through' | undefined,
               },
             };
           })
@@ -103,6 +201,7 @@ const previewTemplatesRoute = createRoute({
           isBackgroundColored: shouldUseColor,
           items,
           isPublished: true,
+          animationType,
         });
 
         setDidSave(true);
@@ -116,7 +215,7 @@ const previewTemplatesRoute = createRoute({
       } finally {
         setIsSaving(false);
       }
-    }, [committed, resetAll, user]);
+    }, [animationType, committed, normalizeLinkUrl, resetAll, user]);
 
     if (!committed) {
       return null;
@@ -139,13 +238,14 @@ const previewTemplatesRoute = createRoute({
         {committed.overlays.map((overlay, index) => {
           const isText = overlay.type === 'text';
 
+          const positionStyle = computePositionStyle(overlay, index);
+
           return (
             <div
               key={overlay.id}
               className="fixed z-20 touch-none"
               style={{
-                left: `${overlay.x}px`,
-                top: `${overlay.y}px`,
+                ...positionStyle,
                 touchAction: 'none',
               }}
             >
@@ -153,7 +253,12 @@ const previewTemplatesRoute = createRoute({
                 {isText ? (
                   <div
                     className="min-w-[140px] min-h-[48px] rounded-lg bg-white/60 backdrop-blur-sm border border-white px-4 py-3 shadow-lg text-center"
-                    style={{ fontSize: `${overlay.fontSize}px`, fontWeight: overlay.fontWeight, fontFamily: overlay.fontFamily }}
+                    style={{
+                      fontSize: `${overlay.fontSize}px`,
+                      fontWeight: overlay.fontWeight,
+                      fontFamily: overlay.fontFamily,
+                      textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
+                    }}
                   >
                     {overlay.text || '텍스트를 입력하세요'}
                   </div>
@@ -175,28 +280,51 @@ const previewTemplatesRoute = createRoute({
           );
         })}
 
-        <div className="fixed left-4 right-4 bottom-8 z-50 flex items-center justify-between bg-white/90 rounded-2xl shadow-lg border border-black/5 px-4 py-3">
+        <div className="fixed left-4 right-4 bottom-6 z-50">
+          <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between bg-white/95 rounded-2xl shadow-lg border border-black/5 px-4 py-3">
+            <div className="flex items-center gap-2 bg-[#F9F9F9] rounded-xl px-2 py-1">
+              {[
+                { value: 'default', label: '기본' },
+                { value: 'spread', label: '퍼짐' },
+                { value: 'collage', label: '콜라주' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => triggerAnimation(option.value as AnimationType)}
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    animationType === option.value
+                      ? 'bg-black text-white'
+                      : 'bg-white text-[#4B4B4B] hover:bg-[#E5E5E5]'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
           <div className="flex flex-col text-xs text-[#4B4B4B]">
             <span>{committed.backgroundImageUrl ? '배경 이미지 적용됨' : committed.isBackgroundColored ? '단색 배경 적용됨' : '배경 없음'}</span>
             <span>링크/이미지 {overlayImageCount}개, 텍스트 {committed.overlays.length - overlayImageCount}개</span>
+            <span>애니메이션: {animationType === 'default' ? '기본' : animationType === 'spread' ? '퍼짐' : '콜라주'}</span>
             {saveError && <span className="text-red-500">{saveError}</span>}
             {didSave && !saveError && <span className="text-emerald-600">저장되었습니다.</span>}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.navigate({ to: '/templates/edit' })}
-              className="px-4 py-2 rounded-lg border border-[#D9D9D9] text-sm text-[#4B4B4B] hover:border-black"
-              disabled={isSaving}
-            >
-              돌아가기
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!canSave}
-              className="px-6 py-3 bg-[#FF5C00] text-white font-semibold rounded-full shadow-lg disabled:bg-[#FFC6A3] disabled:cursor-not-allowed transition-colors"
-            >
-              저장하기
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.navigate({ to: '/templates/edit' })}
+                className="px-4 py-2 rounded-lg border border-[#D9D9D9] text-sm text-[#4B4B4B] hover:border-black"
+                disabled={isSaving}
+              >
+                돌아가기
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!canSave}
+                className="px-6 py-3 bg-[#FF5C00] text-white font-semibold rounded-full shadow-lg disabled:bg-[#FFC6A3] disabled:cursor-not-allowed transition-colors"
+              >
+                저장하기
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -12,6 +12,7 @@ export type ImageOverlay = BaseOverlay & {
   baseWidth: number;
   baseHeight: number;
   scalePercent: number;
+  linkUrl?: string;
 };
 
 export type TextOverlay = BaseOverlay & {
@@ -20,6 +21,8 @@ export type TextOverlay = BaseOverlay & {
   fontSize: number;
   fontWeight: number;
   fontFamily: string;
+  underline?: boolean;
+  strikethrough?: boolean;
 };
 
 export type Overlay = ImageOverlay | TextOverlay;
