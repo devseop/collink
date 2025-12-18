@@ -138,7 +138,6 @@ const editTemplatesRoute = createRoute({
     const selectedTemplate = useTemplateSelectionStore((state) => state.selectedTemplate);
     const replaceDraft = useTemplateEditorStore((state) => state.replaceDraft);
     const commitDraft = useTemplateEditorStore((state) => state.commitDraft);
-    const setDraft = useTemplateEditorStore((state) => state.setDraft);
     const draftSnapshot = useTemplateEditorStore((state) => state.draft);
     const committedSnapshot = useTemplateEditorStore((state) => state.committed);
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
@@ -216,16 +215,6 @@ const editTemplatesRoute = createRoute({
     });
 
     const colorPickerValue = backgroundColor ?? '#FFFFFF';
-    // keep draft in sync so header can detect unsaved work
-    useEffect(() => {
-      setDraft({
-        backgroundImageUrl: previewImage,
-        backgroundFile,
-        backgroundColor,
-        isBackgroundColored,
-        overlays: overlays.map((overlay) => ({ ...overlay })),
-      });
-    }, [setDraft, previewImage, backgroundFile, backgroundColor, isBackgroundColored, overlays]);
 
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
