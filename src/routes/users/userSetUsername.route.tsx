@@ -137,7 +137,7 @@ const userSetUsernameRoute = createRoute({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <div className="flex flex-row items-start gap-1 bg-[#F5F5F5] px-4 py-3 rounded-lg w-full">
-              <p className="text-[15px] font-medium text-[#B3B3B3]">collink.io/</p>
+              <p className="text-[15px] font-medium text-[#B3B3B3]">linkku.io/</p>
               <input
                 className="placeholder:text-[#B3B3B3] placeholder:font-medium w-full mt-[-1px] bg-transparent"
                 type="text"
