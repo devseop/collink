@@ -8,6 +8,7 @@ import { uploadTemplateAsset } from '../../api/storageAPI';
 import { createCustomTemplate } from '../../api/templateAPI';
 import type { TemplateItem } from '../../types/templates';
 import type { Overlay } from '../../types/overlay';
+import { safeRandomUUID } from '../../utils/random';
 
 type AnimationType = 'default' | 'spread' | 'collage';
 
@@ -192,7 +193,7 @@ const previewTemplatesRoute = createRoute({
           })
         );
 
-        const customTemplateId = crypto.randomUUID();
+        const customTemplateId = safeRandomUUID();
         await createCustomTemplate({
           customTemplateId,
           userId: user.id,
@@ -280,9 +281,10 @@ const previewTemplatesRoute = createRoute({
           );
         })}
 
-        <div className="fixed left-4 right-4 bottom-6 z-50">
-          <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between bg-white/95 rounded-2xl shadow-lg border border-black/5 px-4 py-3">
-            <div className="flex items-center gap-2 bg-[#F9F9F9] rounded-xl px-2 py-1">
+        <div className="fixed left-0 right-0 bottom-0 z-50">
+          <div className="bg-white/95 backdrop-blur-sm shadow-[0_-8px_24px_rgba(0,0,0,0.08)] border border-black/5 px-4 py-4 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+            <span className="text-sm font-semibold text-[#4B4B4B]">애니메이션</span>
+            <div className="flex items-center gap-2 bg-[#F9F9F9] rounded-xl py-1 mb-2">
               {[
                 { value: 'default', label: '기본' },
                 { value: 'spread', label: '퍼짐' },
@@ -302,17 +304,15 @@ const previewTemplatesRoute = createRoute({
               ))}
             </div>
 
-          <div className="flex flex-col text-xs text-[#4B4B4B]">
-            <span>{committed.backgroundImageUrl ? '배경 이미지 적용됨' : committed.isBackgroundColored ? '단색 배경 적용됨' : '배경 없음'}</span>
-            <span>링크/이미지 {overlayImageCount}개, 텍스트 {committed.overlays.length - overlayImageCount}개</span>
-            <span>애니메이션: {animationType === 'default' ? '기본' : animationType === 'spread' ? '퍼짐' : '콜라주'}</span>
-            {saveError && <span className="text-red-500">{saveError}</span>}
-            {didSave && !saveError && <span className="text-emerald-600">저장되었습니다.</span>}
-          </div>
-            <div className="flex items-center gap-2">
+          {/* bottom UI */}
+            <div className="flex flex-col text-xs text-[#4B4B4B]">
+              {saveError && <span className="text-red-500">{saveError}</span>}
+              {didSave && !saveError && <span className="text-emerald-600">저장되었습니다.</span>}
+            </div>
+            <div className="flex items-center gap-2 w-full">
               <button
                 onClick={() => router.navigate({ to: '/templates/edit' })}
-                className="px-4 py-2 rounded-lg border border-[#D9D9D9] text-sm text-[#4B4B4B] hover:border-black"
+                className="px-4 py-2 rounded-lg border border-[#D9D9D9] text-sm text-[#4B4B4B] hover:border-black w-full"
                 disabled={isSaving}
               >
                 돌아가기
@@ -320,7 +320,7 @@ const previewTemplatesRoute = createRoute({
               <button
                 onClick={handleSave}
                 disabled={!canSave}
-                className="px-6 py-3 bg-[#FF5C00] text-white font-semibold rounded-full shadow-lg disabled:bg-[#FFC6A3] disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 bg-[#b1ff8d] text-black font-semibold rounded-lg disabled:bg-[#FFC6A3] disabled:cursor-not-allowed transition-colors w-full"
               >
                 저장하기
               </button>

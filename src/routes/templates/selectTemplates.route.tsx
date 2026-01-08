@@ -96,7 +96,15 @@ const selectTemplatesRoute = createRoute({
 
     return (
       <div className="flex flex-col gap-[48px] w-full">
-      <div className="flex flex-col gap-3">
+      {/* header */}
+      <div className='flex justify-end px-5 py-4'>
+        <button onClick={() => router.navigate({ to: '/templates/edit' })}>
+          건너뛰기
+        </button>
+      </div>
+      {/* content */}
+      <div>
+      <div className="flex flex-col gap-3 mb-[48px]">
         <p className="text-[32px] font-extrabold text-center">템플릿을 선택하세요</p>
         <div>
           <p className="text-[15px] font-medium text-[#757575] text-center">원하는 스타일을 선택하세요</p>
@@ -159,14 +167,15 @@ const selectTemplatesRoute = createRoute({
         </div>
       </div>
       {/* 고정 버튼 */}
-      <div className='fixed bottom-4 left-0 right-0 px-4 z-10'>
+      <div className='fixed bottom-0 left-0 right-0 px-5 pb-10 z-10'>
         <button 
-          className='w-full h-[48px] rounded-lg flex items-center justify-center text-white font-bold bg-[#000000]' 
+          className='w-full py-4 rounded-lg flex items-center justify-center text-[#222222] leading-none font-bold bg-[#B1FF8D]' 
           onClick={handleSelectTemplate}
         >
           템플릿 선택하기
         </button>
       </div>
+    </div>
     </div>
     );
   }

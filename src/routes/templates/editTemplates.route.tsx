@@ -23,6 +23,7 @@ import IconArrowRight from '../../assets/icons/ic_arrow_right.svg?react';
 import IconBackground from '../../assets/icons/ic_background.svg?react';
 import IconLink from '../../assets/icons/ic_link.svg?react';
 import IconImage from '../../assets/icons/ic_image.svg?react';
+import { safeRandomUUID } from '../../utils/random';
 import Header from '../../components/Header';
 
 
@@ -92,7 +93,7 @@ const mapTemplateToEditorState = (template: DefaultTemplate | null): EditorIniti
       const maxScalePercent = getImageScalePercentMax(baseWidth, baseHeight);
       const scalePercent = deriveScalePercentFromSize(templateWidth, templateHeight, maxScalePercent);
       overlays.push({
-        id: crypto.randomUUID(),
+        id: safeRandomUUID(),
         type: 'image',
         image: item.imageUrl,
         file: null,
@@ -108,7 +109,7 @@ const mapTemplateToEditorState = (template: DefaultTemplate | null): EditorIniti
 
     if (item.text || item.font) {
       overlays.push({
-        id: crypto.randomUUID(),
+        id: safeRandomUUID(),
         type: 'text',
         text: item.text ?? '',
         fontSize: item.font?.size ?? DEFAULT_TEXT_FONT_SIZE,
@@ -180,7 +181,6 @@ const editTemplatesRoute = createRoute({
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
     const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
-    
     const initialEditorState = useMemo(() => {
       const hasCommitted =
         committedSnapshot &&
@@ -249,6 +249,7 @@ const editTemplatesRoute = createRoute({
       initialIsBackgroundColored: initialEditorState.isBackgroundColored,
       initialOverlays: initialEditorState.overlays,
     });
+    const isOverlayFocused = Boolean(selectedImageId || selectedTextId || editingOverlayId);
 
     const colorPickerValue = backgroundColor ?? '#FFFFFF';
     // Capture initial editor state once for change detection
@@ -516,9 +517,10 @@ const editTemplatesRoute = createRoute({
                         fontFamily: overlay.fontFamily,
                         textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
                       }}
-                      placeholder="텍스트를 입력하세요"
-                    />
+                      placeholder=""
+                      />
                   ) : (
+                    // focused state
                     <div
                       className="min-w-[140px] min-h-[48px] rounded-lg bg-white/40 backdrop-blur-sm border border-white px-4 py-3 shadow-lg text-center cursor-text"
                       style={{
@@ -533,7 +535,7 @@ const editTemplatesRoute = createRoute({
                         setSelectedTextId(overlay.id);
                       }}
                     >
-                      {overlay.text || '텍스트를 입력하세요'}
+                      {overlay.text || ''}
                     </div>
                   )
                 ) : (
@@ -579,272 +581,287 @@ const editTemplatesRoute = createRoute({
           onChange={handleOverlayChange}
         />
 
-        {selectedImageOverlay && (
+        {(selectedImageOverlay || selectedTextOverlay) && (
           <div
-            className="fixed left-4 right-4 bottom-28 z-50 bg-white rounded-2xl shadow-xl border border-black/5 p-4 flex flex-col gap-2"
+            className="fixed left-0 right-0 bottom-0 z-50 bg-white/95 backdrop-blur-sm border-t border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] px-4 py-4"
             onMouseDown={(event) => event.stopPropagation()}
             onTouchStart={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[#101010]">순서</p>
-              <div className="flex gap-2">
-                <button
-                  className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    moveDown(selectedImageOverlay.id);
-                  }}
-                  disabled={!canMoveImageDown}
-                >
-                  뒤로
-                </button>
-                <button
-                  className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    moveUp(selectedImageOverlay.id);
-                  }}
-                  disabled={!canMoveImageUp}
-                >
-                  앞으로
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[#101010]">이미지 회전</p>
-              <span className="text-xs text-[#6B6B6B]">{Math.round(selectedImageOverlay.rotation ?? 0)}°</span>
-            </div>
-            <input
-              type="range"
-              min={-90}
-              max={90}
-              value={selectedImageOverlay.rotation}
-              onChange={(event) => handleRotationChange(Number(event.target.value))}
-              className="w-full"
-            />
-            <div className="flex justify-between text-[11px] text-[#A0A0A0]">
-              <span>-90°</span>
-              <span>0°</span>
-              <span>90°</span>
-            </div>
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-sm font-semibold text-[#101010]">이미지 크기</p>
-              <span className="text-xs text-[#6B6B6B]">{selectedImageSizePercent}%</span>
-            </div>
-            <input
-              type="range"
-              min={IMAGE_SCALE_DEFAULT_PERCENT}
-              max={selectedImageScaleMax}
-              value={selectedImageSizePercent}
-              onChange={(event) => handleImageScaleChange(Number(event.target.value))}
-              className="w-full"
-            />
-            <div className="flex justify-between text-[11px] text-[#A0A0A0]">
-              <span>default</span>
-              <span>max</span>
-            </div>
-            <div className="flex flex-col gap-2 pt-2">
-              <p className="text-sm font-semibold text-[#101010]">링크 추가</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={linkInputValue}
-                  onChange={(event) => setLinkInputValue(event.target.value)}
-                  onClick={(event) => event.stopPropagation()}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      handleLinkUrlConfirm();
-                    }
-                  }}
-                  placeholder="https://example.com"
-                  className="flex-1 rounded-lg border border-[#D9D9D9] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                />
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleLinkUrlConfirm();
-                  }}
-                  className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold"
-                >
-                  확인
-                </button>
-              </div>
-              <p className="text-[11px] text-[#A0A0A0]">링크가 있으면 공개 화면에서 클릭할 수 있어요.</p>
-            </div>
-          </div>
-        )}
-        {selectedTextOverlay && (
-          <div
-            className="fixed left-4 right-4 bottom-28 z-50 bg-white rounded-2xl shadow-xl border border-black/5 p-4 flex flex-col gap-4"
-            onMouseDown={(event) => event.stopPropagation()}
-            onTouchStart={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-[#101010]">순서</p>
-              <div className="flex gap-2">
-                <button
-                  className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    moveDown(selectedTextOverlay.id);
-                  }}
-                  disabled={!canMoveTextDown}
-                >
-                  뒤로
-                </button>
-                <button
-                  className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    moveUp(selectedTextOverlay.id);
-                  }}
-                  disabled={!canMoveTextUp}
-                >
-                  앞으로
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-[#101010]">폰트 스타일</p>
-              <div className="flex gap-2">
-                {TEXT_FONT_FAMILIES.map((family) => (
-                  <button
-                    key={family.value}
-                    className={`flex-1 px-3 py-2 rounded-lg border text-sm ${
-                      selectedTextOverlay.fontFamily === family.value
-                        ? 'bg-black text-white border-black'
-                        : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
-                    }`}
-                    onClick={() => handleTextStyleChange({ fontFamily: family.value })}
-                  >
-                    {family.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-[#101010]">크기</p>
-              <div className="grid grid-cols-3 gap-2">
-                {TEXT_FONT_SIZES.map((size) => (
-                  <button
-                    key={size.value}
-                    className={`px-3 py-2 rounded-lg border text-xs ${
-                      selectedTextOverlay.fontSize === size.value
-                        ? 'bg-black text-white border-black'
-                        : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
-                    }`}
-                    onClick={() => handleTextStyleChange({ fontSize: size.value })}
-                  >
-                    {size.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-[#101010]">굵기</p>
-              <div className="grid grid-cols-3 gap-2">
-                {TEXT_FONT_WEIGHTS.map((weight) => (
-                  <button
-                    key={weight.value}
-                    className={`px-3 py-2 rounded-lg border text-xs ${
-                      selectedTextOverlay.fontWeight === weight.value
-                        ? 'bg-black text-white border-black'
-                        : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
-                    }`}
-                    onClick={() => handleTextStyleChange({ fontWeight: weight.value })}
-                  >
-                    {weight.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-[#101010]">꾸미기</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  className={`px-3 py-2 rounded-lg border text-xs ${
-                    selectedTextOverlay.underline
-                      ? 'bg-black text-white border-black'
-                      : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
-                  }`}
-                  onClick={() => handleTextStyleChange({ underline: !selectedTextOverlay.underline })}
-                >
-                  밑줄
-                </button>
-                <button
-                  className={`px-3 py-2 rounded-lg border text-xs ${
-                    selectedTextOverlay.strikethrough
-                      ? 'bg-black text-white border-black'
-                      : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
-                  }`}
-                  onClick={() => handleTextStyleChange({ strikethrough: !selectedTextOverlay.strikethrough })}
-                >
-                  취소선
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {showBackgroundOptions && (
-          <div className="fixed left-4 bottom-24 z-50 w-[280px] rounded-2xl bg-white shadow-xl border border-black/5 p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setBackgroundMode('image')}
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    backgroundMode === 'image' ? 'bg-black text-white' : 'bg-[#F3F3F3] text-[#6B6B6B]'
-                  }`}
-                >
-                  이미지
-                </button>
-                <button
-                  onClick={() => setBackgroundMode('color')}
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    backgroundMode === 'color' ? 'bg-black text-white' : 'bg-[#F3F3F3] text-[#6B6B6B]'
-                  }`}
-                >
-                  단색
-                </button>
-              </div>
-              <button
-                onClick={() => setShowBackgroundOptions(false)}
-                className="text-xs text-[#6B6B6B] hover:text-black"
-              >
-                닫기
-              </button>
-            </div>
-            {backgroundMode === 'image' ? (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-[#6B6B6B]">이미지를 업로드해 배경으로 사용할 수 있어요.</p>
-                <button
-                  onClick={() => {
-                    triggerBackgroundSelect();
-                    setIsBackgroundColored(false);
-                    setShowBackgroundOptions(false);
-                  }}
-                  className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold"
-                >
-                  이미지 업로드
-                </button>
-              </div>
-            ) : (
+            {selectedImageOverlay && (
               <div className="flex flex-col gap-3">
-                <HexColorPicker color={colorPickerValue} onChange={handleSelectColor} className="w-full" />
-                <div className="flex items-center justify-between text-xs text-[#6B6B6B]">
-                  <span className="font-mono">{colorPickerValue.toUpperCase()}</span>
-                  <button
-                    onClick={() => setShowBackgroundOptions(false)}
-                    className="px-2 py-1 rounded-md bg-black text-white text-xs"
-                  >
-                    적용
-                  </button>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-[#101010]">순서</p>
+                  <div className="flex gap-2">
+                    <button
+                      className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        moveDown(selectedImageOverlay.id);
+                      }}
+                      disabled={!canMoveImageDown}
+                    >
+                      뒤로
+                    </button>
+                    <button
+                      className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        moveUp(selectedImageOverlay.id);
+                      }}
+                      disabled={!canMoveImageUp}
+                    >
+                      앞으로
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-[#101010]">이미지 회전</p>
+                  <span className="text-xs text-[#6B6B6B]">{Math.round(selectedImageOverlay.rotation ?? 0)}°</span>
+                </div>
+                <input
+                  type="range"
+                  min={-90}
+                  max={90}
+                  value={selectedImageOverlay.rotation}
+                  onChange={(event) => handleRotationChange(Number(event.target.value))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[11px] text-[#A0A0A0]">
+                  <span>-90°</span>
+                  <span>0°</span>
+                  <span>90°</span>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-sm font-semibold text-[#101010]">이미지 크기</p>
+                  <span className="text-xs text-[#6B6B6B]">{selectedImageSizePercent}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={IMAGE_SCALE_DEFAULT_PERCENT}
+                  max={selectedImageScaleMax}
+                  value={selectedImageSizePercent}
+                  onChange={(event) => handleImageScaleChange(Number(event.target.value))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[11px] text-[#A0A0A0]">
+                  <span>default</span>
+                  <span>max</span>
+                </div>
+
+                <div className="flex flex-col gap-2 pt-2">
+                  <p className="text-sm font-semibold text-[#101010]">링크 추가</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={linkInputValue}
+                      onChange={(event) => setLinkInputValue(event.target.value)}
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          handleLinkUrlConfirm();
+                        }
+                      }}
+                      placeholder="https://example.com"
+                      className="flex-1 rounded-lg border border-[#D9D9D9] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    />
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleLinkUrlConfirm();
+                      }}
+                      className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold"
+                    >
+                      확인
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-[#A0A0A0]">링크가 있으면 공개 화면에서 클릭할 수 있어요.</p>
+                </div>
+              </div>
+            )}
+
+            {selectedTextOverlay && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-[#101010]">순서</p>
+                  <div className="flex gap-2">
+                    <button
+                      className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        moveDown(selectedTextOverlay.id);
+                      }}
+                      disabled={!canMoveTextDown}
+                    >
+                      뒤로
+                    </button>
+                    <button
+                      className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        moveUp(selectedTextOverlay.id);
+                      }}
+                      disabled={!canMoveTextUp}
+                    >
+                      앞으로
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-[#101010]">폰트 스타일</p>
+                  <div className="flex gap-2">
+                    {TEXT_FONT_FAMILIES.map((family) => (
+                      <button
+                        key={family.value}
+                        className={`flex-1 px-3 py-2 rounded-lg border text-sm ${
+                          selectedTextOverlay.fontFamily === family.value
+                            ? 'bg-black text-white border-black'
+                            : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
+                        }`}
+                        onClick={() => handleTextStyleChange({ fontFamily: family.value })}
+                      >
+                        {family.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-[#101010]">크기</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {TEXT_FONT_SIZES.map((size) => (
+                      <button
+                        key={size.value}
+                        className={`px-3 py-2 rounded-lg border text-xs ${
+                          selectedTextOverlay.fontSize === size.value
+                            ? 'bg-black text-white border-black'
+                            : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
+                        }`}
+                        onClick={() => handleTextStyleChange({ fontSize: size.value })}
+                      >
+                        {size.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-[#101010]">굵기</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {TEXT_FONT_WEIGHTS.map((weight) => (
+                      <button
+                        key={weight.value}
+                        className={`px-3 py-2 rounded-lg border text-xs ${
+                          selectedTextOverlay.fontWeight === weight.value
+                            ? 'bg-black text-white border-black'
+                            : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
+                        }`}
+                        onClick={() => handleTextStyleChange({ fontWeight: weight.value })}
+                      >
+                        {weight.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-[#101010]">꾸미기</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      className={`px-3 py-2 rounded-lg border text-xs ${
+                        selectedTextOverlay.underline
+                          ? 'bg-black text-white border-black'
+                          : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
+                      }`}
+                      onClick={() => handleTextStyleChange({ underline: !selectedTextOverlay.underline })}
+                    >
+                      밑줄
+                    </button>
+                    <button
+                      className={`px-3 py-2 rounded-lg border text-xs ${
+                        selectedTextOverlay.strikethrough
+                          ? 'bg-black text-white border-black'
+                          : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
+                      }`}
+                      onClick={() => handleTextStyleChange({ strikethrough: !selectedTextOverlay.strikethrough })}
+                    >
+                      취소선
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
           </div>
         )}
-        <div className="fixed left-4 bottom-4 z-50 flex gap-2">
+        {showBackgroundOptions && (
+          <div className="fixed left-0 right-0 bottom-0 z-50">
+            <div
+              className="mb-0 bg-white/95 backdrop-blur-sm shadow-[0_-8px_24px_rgba(0,0,0,0.08)] border border-black/5 px-4 py-4 flex flex-col gap-3"
+              onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setBackgroundMode('image')}
+                    className={`px-3 py-1 rounded-full text-sm ${
+                      backgroundMode === 'image' ? 'bg-black text-white' : 'bg-[#F3F3F3] text-[#6B6B6B]'
+                    }`}
+                  >
+                    이미지
+                  </button>
+                  <button
+                    onClick={() => setBackgroundMode('color')}
+                    className={`px-3 py-1 rounded-full text-sm ${
+                      backgroundMode === 'color' ? 'bg-black text-white' : 'bg-[#F3F3F3] text-[#6B6B6B]'
+                    }`}
+                  >
+                    단색
+                  </button>
+                </div>
+                <button
+                  onClick={() => setShowBackgroundOptions(false)}
+                  className="text-xs text-[#6B6B6B] hover:text-black"
+                >
+                  닫기
+                </button>
+              </div>
+              {backgroundMode === 'image' ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-[#6B6B6B]">이미지를 업로드해 배경으로 사용할 수 있어요.</p>
+                  <button
+                    onClick={() => {
+                      triggerBackgroundSelect();
+                      setIsBackgroundColored(false);
+                      setShowBackgroundOptions(false);
+                    }}
+                    className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold"
+                  >
+                    이미지 업로드
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <HexColorPicker color={colorPickerValue} onChange={handleSelectColor} className="w-full" />
+                  <div className="flex items-center justify-between text-xs text-[#6B6B6B]">
+                    <span className="font-mono">{colorPickerValue.toUpperCase()}</span>
+                    <button
+                      onClick={() => setShowBackgroundOptions(false)}
+                      className="px-2 py-1 rounded-md bg-black text-white text-xs"
+                    >
+                      적용
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {!isOverlayFocused && !showBackgroundOptions && (
+          <div className="fixed left-4 bottom-4 z-50 flex gap-2">
           <button
             onClick={() => {
               setBackgroundMode('image');
@@ -895,8 +912,7 @@ const editTemplatesRoute = createRoute({
             )}
           </div>
         </div>
-
-        
+        )}
       </div>
     );
   },

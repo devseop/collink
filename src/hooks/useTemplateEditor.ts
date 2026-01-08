@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { DefaultTemplate, TemplateItem, Category } from '../types/templates';
+import { safeRandomUUID } from '../utils/random';
 
 export type TemplateItemType = 'image' | 'text' | 'link' | 'background';
 
@@ -68,7 +69,7 @@ export function useTemplateEditor(initialTemplate: DefaultTemplate | null = null
         ...prev.items,
         {
           ...item,
-          id: crypto.randomUUID(),
+          id: safeRandomUUID(),
         },
       ],
     }));
@@ -115,4 +116,3 @@ export function useTemplateEditor(initialTemplate: DefaultTemplate | null = null
     [state, selectedItemId, selectItem, addItem, updateItem, removeItem, setBackground, resetFromTemplate]
   );
 }
-

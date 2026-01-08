@@ -2,6 +2,7 @@ import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import type { ChangeEvent } from 'react';
 import type { ImageOverlay, Overlay } from '../../types/overlay';
 import { DEFAULT_IMAGE_SIZE, computeBaseDimensions } from '../../utils/overlayMath';
+import { safeRandomUUID } from '../../utils/random';
 
 type UseOverlayFilesOptions = {
   maxOverlays: number;
@@ -64,7 +65,7 @@ export function useOverlayFiles({
           );
           setOverlays((prev) => {
             const newOverlay: ImageOverlay = {
-              id: crypto.randomUUID(),
+              id: safeRandomUUID(),
               type: 'image',
               image: dataUrl,
               file,
@@ -82,7 +83,7 @@ export function useOverlayFiles({
         imageElement.onerror = () => {
           setOverlays((prev) => {
             const newOverlay: ImageOverlay = {
-              id: crypto.randomUUID(),
+              id: safeRandomUUID(),
               type: 'image',
               image: dataUrl,
               file,

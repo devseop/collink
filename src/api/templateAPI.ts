@@ -214,7 +214,12 @@ export async function getLatestPublishedCustomTemplateByUser(
           weight: item.font_weight ?? 600,
           color: item.font_color ?? '#000000',
           family: item.font_family ?? 'classic',
-          decoration: item.text_decoration as 'underline' | 'line-through' | 'none' | 'underline line-through' | undefined,
+          decoration: item.text_decoration as
+            | 'underline'
+            | 'line-through'
+            | 'none'
+            | 'underline line-through'
+            | undefined,
         }
       : undefined,
     rotation: item.rotation ?? 0,

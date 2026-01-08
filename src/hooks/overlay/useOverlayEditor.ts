@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { clampScalePercent, computeBaseDimensions, getImageScalePercentMax } from '../../utils/overlayMath';
+import { safeRandomUUID } from '../../utils/random';
 import type { Overlay, TextOverlay } from '../../types/overlay';
 import { useOverlayDrag } from './useOverlayDrag';
 import { useOverlayFiles } from './useOverlayFiles';
@@ -74,7 +75,7 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
   const addTextOverlay = useCallback((initialText = '') => {
     setOverlays((prev) => {
       const newOverlay: TextOverlay = {
-        id: crypto.randomUUID(),
+        id: safeRandomUUID(),
         type: 'text',
         text: initialText,
         fontSize: 18,

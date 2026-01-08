@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { safeRandomUUID } from '../utils/random';
 
 const TEMPLATE_ASSET_BUCKET = 'template-assets';
 
@@ -10,7 +11,7 @@ type UploadTemplateAssetArgs = {
 
 export async function uploadTemplateAsset({ file, userId, folder = 'assets' }: UploadTemplateAssetArgs) {
   const fileExt = file.name.split('.').pop() ?? 'png';
-  const fileName = `${crypto.randomUUID()}.${fileExt}`;
+  const fileName = `${safeRandomUUID()}.${fileExt}`;
   const filePath = `${userId}/${folder}/${fileName}`;
 
   const { error } = await supabase.storage.from(TEMPLATE_ASSET_BUCKET).upload(filePath, file, {
@@ -25,4 +26,3 @@ export async function uploadTemplateAsset({ file, userId, folder = 'assets' }: U
   const { data } = supabase.storage.from(TEMPLATE_ASSET_BUCKET).getPublicUrl(filePath);
   return data.publicUrl;
 }
-

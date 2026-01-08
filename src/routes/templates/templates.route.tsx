@@ -8,7 +8,7 @@ const templatesRoute = createRoute({
   getParentRoute: () => rootRoute,
   component: () => {
     return (
-      <div className="flex flex-col items-center justify-center h-full mt-[76px]">
+      <div className="flex flex-col items-center justify-center h-full">
         <Outlet />
       </div>
     );
