@@ -23,6 +23,7 @@ import IconArrowRight from '../../assets/icons/ic_arrow_right.svg?react';
 import IconBackground from '../../assets/icons/ic_background.svg?react';
 import IconLink from '../../assets/icons/ic_link.svg?react';
 import IconImage from '../../assets/icons/ic_image.svg?react';
+import IconClose from '../../assets/icons/ic_close.svg?react';
 import { safeRandomUUID } from '../../utils/random';
 import Header from '../../components/Header';
 
@@ -250,6 +251,7 @@ const editTemplatesRoute = createRoute({
       initialOverlays: initialEditorState.overlays,
     });
     const isOverlayFocused = Boolean(selectedImageId || selectedTextId || editingOverlayId);
+    const isEmptyState = !previewImage && !isBackgroundColored && overlays.length === 0;
 
     const colorPickerValue = backgroundColor ?? '#FFFFFF';
     // Capture initial editor state once for change detection
@@ -469,6 +471,39 @@ const editTemplatesRoute = createRoute({
           />
         )}
 
+        {isEmptyState && (
+          <div className='flex justify-center items-center px-5 pt-[68px] pb-12 h-dvh'>
+          <div className="w-full h-full min-w-[320px] border border-dashed border-[#CFCFCF] rounded-2xl  text-center bg-white/70">
+            <div className='flex flex-col items-center justify-center h-full'>
+                <div className="mx-auto mb-4 flex items-center justify-center">
+                  <IconImage className="h-14 w-14 text-[#222222]" aria-hidden />
+                </div>
+                <div className='flex flex-col items-center justify-center gap-2 mt-3 mb-6'>
+                  <p className="text-sm font-medium text-[#222222] leading-none">원하는 이미지나 배경색을 선택해주세요.</p>
+                  <p className="text-xs font-regular text-[#7A7A7A] leading-none">50MB 이하의 JPEG, PNG, and MP4만 가능해요.</p>
+                </div>
+                <div className="flex flex-row gap-3 justify-center">
+                  <button
+                    onClick={() => triggerBackgroundSelect()}
+                    className="w-fit rounded-lg border border-[#D3D3D3] px-4 py-[10px] text-sm font-medium text-[#222222] leading-none"
+                  >
+                    이미지 고르기
+                  </button>
+                  <button
+                    onClick={() => {
+                      setBackgroundMode('color');
+                      setShowBackgroundOptions(true);
+                    }}
+                    className="w-fit rounded-lg border border-[#D3D3D3] px-4 py-[10px] text-sm font-medium text-[#222222] leading-none"
+                  >
+                    배경색 고르기
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {overlays.map((overlay, index) => {
           const isText = overlay.type === 'text';
           const isEditing = isText && editingOverlayId === overlay.id;
@@ -581,12 +616,14 @@ const editTemplatesRoute = createRoute({
           onChange={handleOverlayChange}
         />
 
+        {/* 오버레이 수정 모달 */}
         {(selectedImageOverlay || selectedTextOverlay) && (
           <div
             className="fixed left-0 right-0 bottom-0 z-50 bg-white/95 backdrop-blur-sm border-t border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] px-4 py-4"
             onMouseDown={(event) => event.stopPropagation()}
             onTouchStart={(event) => event.stopPropagation()}
           >
+            {/* 이미지 오버레이 수정 모달 */}
             {selectedImageOverlay && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
@@ -682,6 +719,7 @@ const editTemplatesRoute = createRoute({
               </div>
             )}
 
+            {/* 텍스트 오버레이 수정 모달 */}
             {selectedTextOverlay && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
@@ -796,37 +834,21 @@ const editTemplatesRoute = createRoute({
             )}
           </div>
         )}
+
+        {/* 이미지 추가 모달 */}
         {showBackgroundOptions && (
           <div className="fixed left-0 right-0 bottom-0 z-50">
             <div
-              className="mb-0 bg-white/95 backdrop-blur-sm shadow-[0_-8px_24px_rgba(0,0,0,0.08)] border border-black/5 px-4 py-4 flex flex-col gap-3"
+              className="mb-0 bg-white backdrop-blur-sm shadow-[0_-1px_12px_rgba(0,0,0,0.2)] flex flex-col gap-3 rounded-t-lg"
               onMouseDown={(event) => event.stopPropagation()}
               onTouchStart={(event) => event.stopPropagation()}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setBackgroundMode('image')}
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      backgroundMode === 'image' ? 'bg-black text-white' : 'bg-[#F3F3F3] text-[#6B6B6B]'
-                    }`}
-                  >
-                    이미지
-                  </button>
-                  <button
-                    onClick={() => setBackgroundMode('color')}
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      backgroundMode === 'color' ? 'bg-black text-white' : 'bg-[#F3F3F3] text-[#6B6B6B]'
-                    }`}
-                  >
-                    단색
-                  </button>
-                </div>
-                <button
-                  onClick={() => setShowBackgroundOptions(false)}
-                  className="text-xs text-[#6B6B6B] hover:text-black"
-                >
-                  닫기
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center px-5 py-5 border-b border-[#D3D3D3]">
+                <p className="col-start-2 text-base font-semibold text-[#222222] leading-none text-center">
+                  배경색 고르기
+                </p>
+                <button onClick={() => setShowBackgroundOptions(false)} className="col-start-3 justify-self-end">
+                  <IconClose className="h-4 w-4 text-[#222222]" aria-hidden />
                 </button>
               </div>
               {backgroundMode === 'image' ? (
@@ -844,15 +866,14 @@ const editTemplatesRoute = createRoute({
                   </button>
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
-                  <HexColorPicker color={colorPickerValue} onChange={handleSelectColor} className="w-full" />
-                  <div className="flex items-center justify-between text-xs text-[#6B6B6B]">
-                    <span className="font-mono">{colorPickerValue.toUpperCase()}</span>
+                <div className="flex flex-col gap-6 p-5">
+                  <HexColorPicker color={colorPickerValue} onChange={handleSelectColor} style={{ width: '100%' }} />
+                  <div className="flex items-center justify-between">
                     <button
                       onClick={() => setShowBackgroundOptions(false)}
-                      className="px-2 py-1 rounded-md bg-black text-white text-xs"
+                      className='w-full py-4 rounded-lg flex items-center justify-center text-[#222222] leading-none font-bold bg-[#B1FF8D]'
                     >
-                      적용
+                      적용하기
                     </button>
                   </div>
                 </div>
@@ -860,7 +881,9 @@ const editTemplatesRoute = createRoute({
             </div>
           </div>
         )}
-        {!isOverlayFocused && !showBackgroundOptions && (
+
+        {/* 오버레이 추가 nav bar */}
+        {!isOverlayFocused && !showBackgroundOptions && !isEmptyState && (
           <div className="fixed left-4 bottom-4 z-50 flex gap-2">
           <button
             onClick={() => {
