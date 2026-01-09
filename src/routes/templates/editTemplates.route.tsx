@@ -20,12 +20,16 @@ import {
   TEXT_FONT_WEIGHTS,
 } from '../../constants/templates';
 import IconArrowRight from '../../assets/icons/ic_arrow_right.svg?react';
-import IconBackground from '../../assets/icons/ic_background.svg?react';
+import IconSticker from '../../assets/icons/ic_sticker.svg?react';
 import IconLink from '../../assets/icons/ic_link.svg?react';
 import IconImage from '../../assets/icons/ic_image.svg?react';
 import IconClose from '../../assets/icons/ic_close.svg?react';
+import IconText from '../../assets/icons/ic_text.svg?react';
+import IconPaint from '../../assets/icons/ic_paint.svg?react';
+import IconMotion from '../../assets/icons/ic_motion.svg?react';
 import { safeRandomUUID } from '../../utils/random';
 import Header from '../../components/Header';
+import NavigationButton from '../../components/NavigationButton';
 
 
 const clampScalePercent = (value: number, maxPercent: number, minPercent = IMAGE_SCALE_DEFAULT_PERCENT) =>
@@ -180,6 +184,7 @@ const editTemplatesRoute = createRoute({
     const initialSnapshotRef = useRef<TemplateEditorSnapshot | null>(null);
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
+    const [backgroundOptionsSource, setBackgroundOptionsSource] = useState<'empty' | 'navbar' | null>(null);
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
     const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
     const initialEditorState = useMemo(() => {
@@ -252,9 +257,9 @@ const editTemplatesRoute = createRoute({
     });
     const isOverlayFocused = Boolean(selectedImageId || selectedTextId || editingOverlayId);
     const isEmptyState = !previewImage && !isBackgroundColored && overlays.length === 0;
-
+    const showBackgroundToggle = backgroundOptionsSource === 'navbar';
     const colorPickerValue = backgroundColor ?? '#FFFFFF';
-    // Capture initial editor state once for change detection
+    
     useEffect(() => {
       if (initialSnapshotRef.current) return;
       initialSnapshotRef.current = {
@@ -491,6 +496,7 @@ const editTemplatesRoute = createRoute({
                   </button>
                   <button
                     onClick={() => {
+                      setBackgroundOptionsSource('empty');
                       setBackgroundMode('color');
                       setShowBackgroundOptions(true);
                     }}
@@ -839,38 +845,80 @@ const editTemplatesRoute = createRoute({
         {showBackgroundOptions && (
           <div className="fixed left-0 right-0 bottom-0 z-50">
             <div
-              className="mb-0 bg-white backdrop-blur-sm shadow-[0_-1px_12px_rgba(0,0,0,0.2)] flex flex-col gap-3 rounded-t-lg"
+              className="mb-0 bg-white backdrop-blur-sm shadow-[0_-1px_12px_rgba(0,0,0,0.2)] flex flex-col gap-5 rounded-t-lg"
               onMouseDown={(event) => event.stopPropagation()}
               onTouchStart={(event) => event.stopPropagation()}
             >
               <div className="grid grid-cols-[1fr_auto_1fr] items-center px-5 py-5 border-b border-[#D3D3D3]">
                 <p className="col-start-2 text-base font-semibold text-[#222222] leading-none text-center">
-                  배경색 고르기
+                  {!showBackgroundToggle ? '배경색 고르기' : '배경 수정'}
                 </p>
-                <button onClick={() => setShowBackgroundOptions(false)} className="col-start-3 justify-self-end">
+                <button
+                  onClick={() => {
+                    setShowBackgroundOptions(false);
+                    setBackgroundOptionsSource(null);
+                  }}
+                  className="col-start-3 justify-self-end"
+                >
                   <IconClose className="h-4 w-4 text-[#222222]" aria-hidden />
                 </button>
               </div>
-              {backgroundMode === 'image' ? (
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs text-[#6B6B6B]">이미지를 업로드해 배경으로 사용할 수 있어요.</p>
+              <div className="flex flex-col gap-4">
+              {showBackgroundToggle && (
+                <div className="flex items-center justify-between ">
+                  <div className="flex w-full">
+                    <button
+                      onClick={() => setBackgroundMode('image')}
+                      className={`w-full text-base pb-2 border-b ${
+                        backgroundMode === 'image' ? 'font-bold text-[#222222] border-[#222222] border-b-2 border-b-solid' : 'text-[#6B6B6B] border-[#D3D3D3]'
+                      }`}
+                    >
+                      이미지
+                    </button>
+                    <button
+                      onClick={() => setBackgroundMode('color')}
+                      className={`w-full text-base pb-2 border-b ${
+                        backgroundMode === 'color' ? 'font-bold text-[#222222] border-[#222222] border-b-2 border-b-solid' : 'text-[#6B6B6B] border-[#D3D3D3]'
+                      }`}
+                    >
+                      단색
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showBackgroundToggle && backgroundMode === 'image' ? (
+                <div className="flex flex-col gap-2 px-5 mb-10">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="mx-auto flex items-center justify-center">
+                      <IconImage className="h-10 w-10 text-[#222222]" aria-hidden />
+                    </div>
+                    <div className='flex flex-col items-center justify-center gap-2 mt-3 mb-6'>
+                      <p className="text-sm font-medium text-[#222222] leading-none">원하는 이미지나 배경색을 선택해주세요.</p>
+                      <p className="text-xs font-regular text-[#7A7A7A] leading-none">50MB 이하의 JPEG, PNG, and MP4만 가능해요.</p>
+                    </div>
+                    </div>
                   <button
                     onClick={() => {
                       triggerBackgroundSelect();
                       setIsBackgroundColored(false);
                       setShowBackgroundOptions(false);
+                      setBackgroundOptionsSource(null);
                     }}
-                    className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold"
+                    className='w-full py-4 rounded-lg flex items-center justify-center text-[#222222] leading-none font-bold bg-[#B1FF8D]'
                   >
                     이미지 업로드
                   </button>
                 </div>
               ) : (
-                <div className="flex flex-col gap-6 p-5">
+                <div className="flex flex-col gap-6 px-5 pb-10">
                   <HexColorPicker color={colorPickerValue} onChange={handleSelectColor} style={{ width: '100%' }} />
                   <div className="flex items-center justify-between">
                     <button
-                      onClick={() => setShowBackgroundOptions(false)}
+                      onClick={() => {
+                        setShowBackgroundOptions(false);
+                        setBackgroundOptionsSource(null);
+                      }}
                       className='w-full py-4 rounded-lg flex items-center justify-center text-[#222222] leading-none font-bold bg-[#B1FF8D]'
                     >
                       적용하기
@@ -878,64 +926,73 @@ const editTemplatesRoute = createRoute({
                   </div>
                 </div>
               )}
+              </div>
             </div>
           </div>
         )}
 
         {/* 오버레이 추가 nav bar */}
         {!isOverlayFocused && !showBackgroundOptions && !isEmptyState && (
-          <div className="fixed left-4 bottom-4 z-50 flex gap-2">
-          <button
-            onClick={() => {
-              setBackgroundMode('image');
-              setShowBackgroundOptions((prev) => !prev);
-            }}
-            className="px-3 py-3 transition-colors"
-            aria-label="배경 이미지 추가"
-          >
-            <IconBackground className="w-5 h-5" aria-hidden />
-          </button>
-          <button
-            onClick={triggerOverlaySelect}
-            disabled={overlays.length >= maxOverlays}
-            className="px-3 py-3 transition-colors"
-            aria-label="링크 추가"
-          >
-            <IconLink className="w-5 h-5" aria-hidden />
-          </button>
-          <button
-            onClick={triggerOverlaySelect}
-            disabled={overlays.length >= maxOverlays}
-            className="px-3 py-3 transition-colors"
-            aria-label="이미지 추가"
-          >
-            <IconImage className="w-5 h-5" aria-hidden />
-          </button>
-          <button
-            onClick={() => addTextOverlay()}
-            disabled={overlays.length >= maxOverlays}
-            className="px-3 py-3 transition-colors font-medium text-md"
-          >
-            Aa
-          </button>
-
-          <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
-            <button
-              onClick={handleSaveTemplate}
-              disabled={!canSave || Boolean(editingOverlayId)}
-              className="px-3 py-3 bg-[#B1FF8D] text-white font-semibold rounded-full shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              aria-label="다음"
-            >
-              <IconArrowRight className="w-5 h-5" aria-hidden />
-            </button>
-            {!user && <p className="text-xs text-red-500">로그인이 필요합니다.</p>}
-            {saveError && <p className="text-xs text-red-500">{saveError}</p>}
-            {didSave && !saveError && (
-              <p className="text-xs text-emerald-600">저장되었습니다. 선택 화면으로 이동합니다.</p>
-            )}
+          <div className="fixed inset-x-0 bottom-10 z-50 grid place-items-center">
+            <div className="flex gap-2 w-fit px-4 rounded-xl bg-white shadow-lg">
+              <NavigationButton 
+                onClick={() => {
+                  setBackgroundOptionsSource('navbar');
+                  setBackgroundMode('image');
+                  setShowBackgroundOptions(true);
+                }}
+                aria-label="배경 이미지 추가"
+              >
+                <IconImage className="w-6 h-6 text-[#222222]" aria-hidden />
+                <span className="text-xs font-medium text-[#222222] leading-none">배경</span>
+              </NavigationButton>
+              <NavigationButton 
+                onClick={triggerOverlaySelect}
+                aria-label="스티커 추가"
+              >
+                <IconSticker className="w-6 h-6 text-[#222222]" aria-hidden />
+                <span className="text-xs font-medium text-[#222222] leading-none">스티커</span>
+              </NavigationButton>
+              <NavigationButton 
+                onClick={triggerOverlaySelect}
+                aria-label="링크 추가"
+              >
+                <IconLink className="w-6 h-6 text-[#222222]" aria-hidden />
+                <span className="text-xs font-medium text-[#222222] leading-none">링크</span>
+              </NavigationButton> 
+              <NavigationButton 
+                onClick={() => addTextOverlay()}
+                aria-label="텍스트 추가"
+              >
+                <IconText className="w-6 h-6 text-[#222222]" aria-hidden />
+                <span className="text-xs font-medium text-[#222222] leading-none">텍스트</span>
+              </NavigationButton> 
+              <NavigationButton 
+                onClick={() => console.log('모션 추가')}
+                aria-label="모션 추가"
+              >
+                <IconMotion className="w-6 h-6 text-[#222222]" aria-hidden />
+                <span className="text-xs font-medium text-[#222222] leading-none">모션</span>
+              </NavigationButton> 
+            </div>
           </div>
-        </div>
         )}
+        {/* next button */}
+        {/* <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+          <button
+            onClick={handleSaveTemplate}
+            disabled={!canSave || Boolean(editingOverlayId)}
+            className="px-3 py-3 bg-[#B1FF8D] text-white font-semibold rounded-full shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            aria-label="다음"
+          >
+            <IconArrowRight className="w-5 h-5" aria-hidden />
+          </button>
+          {!user && <p className="text-xs text-red-500">로그인이 필요합니다.</p>}
+          {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+          {didSave && !saveError && (
+            <p className="text-xs text-emerald-600">저장되었습니다. 선택 화면으로 이동합니다.</p>
+          )}
+        </div> */}
       </div>
     );
   },
