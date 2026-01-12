@@ -439,6 +439,13 @@ const editTemplatesRoute = createRoute({
     );
 
     const overlayElementRefs = useRef<Record<string, HTMLElement | null>>({});
+    const textTapRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
+    const textTouchRef = useRef<{ id: string | null; x: number; y: number; moved: boolean }>({
+      id: null,
+      x: 0,
+      y: 0,
+      moved: false,
+    });
     const transformRef = useRef<{
       mode: 'rotate' | 'scale';
       overlayId: string;
@@ -532,6 +539,42 @@ const editTemplatesRoute = createRoute({
     );
 
     useEffect(() => stopTransform, [stopTransform]);
+
+    const handleTextOverlayTouchEnd = useCallback(
+      (event: ReactTouchEvent, overlayId: string) => {
+        const now = Date.now();
+        if (textTouchRef.current.id === overlayId && textTouchRef.current.moved) {
+          textTouchRef.current = { id: null, x: 0, y: 0, moved: false };
+          return;
+        }
+        const last = textTapRef.current;
+        const isDoubleTap = last.id === overlayId && now - last.time < 280;
+        textTapRef.current = { id: overlayId, time: now };
+        if (!isDoubleTap) return;
+        event.preventDefault();
+        event.stopPropagation();
+        startEditingTextOverlay(overlayId);
+        setSelectedTextId(overlayId);
+      },
+      [startEditingTextOverlay]
+    );
+
+    const handleTextOverlayTouchStart = useCallback((event: ReactTouchEvent, overlayId: string) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      textTouchRef.current = { id: overlayId, x: touch.clientX, y: touch.clientY, moved: false };
+    }, []);
+
+    const handleTextOverlayTouchMove = useCallback((event: ReactTouchEvent, overlayId: string) => {
+      if (textTouchRef.current.id !== overlayId) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const deltaX = touch.clientX - textTouchRef.current.x;
+      const deltaY = touch.clientY - textTouchRef.current.y;
+      if (Math.hypot(deltaX, deltaY) > 6) {
+        textTouchRef.current.moved = true;
+      }
+    }, []);
 
     const handleLinkUrlConfirm = useCallback(() => {
       if (!selectedImageOverlay) return;
@@ -653,7 +696,7 @@ const editTemplatesRoute = createRoute({
                         onChange={(event) => updateTextOverlay(overlay.id, event.target.value)}
                         onBlur={() => finishEditingTextOverlay()}
                         onMouseDown={(event) => event.stopPropagation()}
-                        className="min-w-[140px] min-h-[24px] bg-transparent p-2 text-center focus:outline-none"
+                        className="min-w-[140px] min-h-[24px] bg-transparent p-2 text-center focus:outline-none touch-manipulation"
                         style={{
                           fontSize: `${overlay.fontSize}px`,
                           fontWeight: overlay.fontWeight,
@@ -670,7 +713,7 @@ const editTemplatesRoute = createRoute({
                         ref={(node) => {
                           overlayElementRefs.current[overlay.id] = node;
                         }}
-                        className="w-[140px] min-h-[24px] text-shadow-lg/30 text-center cursor-text"
+                        className="w-[140px] min-h-[24px] text-shadow-lg/30 text-center cursor-text touch-manipulation"
                         style={{
                           fontSize: `${overlay.fontSize}px`,
                           fontWeight: overlay.fontWeight,
@@ -683,6 +726,9 @@ const editTemplatesRoute = createRoute({
                           event.stopPropagation();
                           setSelectedTextId(overlay.id);
                         }}
+                        onTouchStart={(event) => handleTextOverlayTouchStart(event, overlay.id)}
+                        onTouchMove={(event) => handleTextOverlayTouchMove(event, overlay.id)}
+                        onTouchEnd={(event) => handleTextOverlayTouchEnd(event, overlay.id)}
                         onDoubleClick={(event) => {
                           event.stopPropagation();
                           startEditingTextOverlay(overlay.id);
