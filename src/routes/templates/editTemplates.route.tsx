@@ -202,6 +202,8 @@ const editTemplatesRoute = createRoute({
     const initialSnapshotRef = useRef<TemplateEditorSnapshot | null>(null);
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
+    const [keyboardInset, setKeyboardInset] = useState(0);
+    const keyboardBaselineRef = useRef<number | null>(null);
     const [backgroundOptionsSource, setBackgroundOptionsSource] = useState<'empty' | 'navbar' | null>(null);
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
     const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
@@ -353,6 +355,43 @@ const editTemplatesRoute = createRoute({
         setSelectedImageId(null);
       }
     }, [editingOverlayId, overlays]);
+
+    useEffect(() => {
+      if (!editingOverlayId) {
+        setKeyboardInset(0);
+        keyboardBaselineRef.current = null;
+        return;
+      }
+      const updateInset = () => {
+        if (window.visualViewport) {
+          const visualViewport = window.visualViewport;
+          const inset = Math.max(
+            0,
+            window.innerHeight - visualViewport.height - visualViewport.offsetTop
+          );
+          setKeyboardInset(inset);
+          return;
+        }
+        if (keyboardBaselineRef.current === null) {
+          keyboardBaselineRef.current = window.innerHeight;
+        }
+        const inset = Math.max(0, (keyboardBaselineRef.current ?? window.innerHeight) - window.innerHeight);
+        setKeyboardInset(inset);
+      };
+
+      updateInset();
+      window.visualViewport?.addEventListener('resize', updateInset);
+      window.visualViewport?.addEventListener('scroll', updateInset);
+      window.addEventListener('resize', updateInset);
+      window.addEventListener('orientationchange', updateInset);
+
+      return () => {
+        window.visualViewport?.removeEventListener('resize', updateInset);
+        window.visualViewport?.removeEventListener('scroll', updateInset);
+        window.removeEventListener('resize', updateInset);
+        window.removeEventListener('orientationchange', updateInset);
+      };
+    }, [editingOverlayId]);
 
     useEffect(() => {
       if (!lastAddedImageOverlayId) return;
@@ -704,6 +743,7 @@ const editTemplatesRoute = createRoute({
                           textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
                           transform: `rotate(${overlay.rotation ?? 0}deg) scale(${(overlay.scalePercent ?? IMAGE_SCALE_DEFAULT_PERCENT) / 100})`,
                           transformOrigin: 'center',
+                          caretColor: '#B1FF8D',
                         }}
                         placeholder=""
                         />
@@ -819,9 +859,12 @@ const editTemplatesRoute = createRoute({
         />
 
         {/* 오버레이 수정 모달 */}
-        {(selectedImageOverlay || selectedTextOverlay) && (
+        {(selectedImageOverlay || (selectedTextOverlay && !editingOverlayId)) && (
           <div
-            className="fixed left-0 right-0 bottom-0 z-50 bg-white/95 backdrop-blur-sm border-t border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] px-4 py-4"
+            className="fixed left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] px-4 py-4 transition-[bottom] duration-200"
+            style={{
+              bottom: editingOverlayId ? `${keyboardInset + 16}px` : '0px',
+            }}
             onMouseDown={(event) => event.stopPropagation()}
             onTouchStart={(event) => event.stopPropagation()}
           >
@@ -887,7 +930,7 @@ const editTemplatesRoute = createRoute({
             )}
 
             {/* 텍스트 오버레이 수정 모달 */}
-            {selectedTextOverlay && (
+            {selectedTextOverlay && !editingOverlayId && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold text-[#101010]">순서</p>
@@ -929,25 +972,6 @@ const editTemplatesRoute = createRoute({
                         onClick={() => handleTextStyleChange({ fontFamily: family.value })}
                       >
                         {family.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs font-semibold text-[#101010]">크기</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {TEXT_FONT_SIZES.map((size) => (
-                      <button
-                        key={size.value}
-                        className={`px-3 py-2 rounded-lg border text-xs ${
-                          selectedTextOverlay.fontSize === size.value
-                            ? 'bg-black text-white border-black'
-                            : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
-                        }`}
-                        onClick={() => handleTextStyleChange({ fontSize: size.value })}
-                      >
-                        {size.label}
                       </button>
                     ))}
                   </div>
@@ -1114,13 +1138,13 @@ const editTemplatesRoute = createRoute({
                 <IconSticker className="w-6 h-6 text-[#222222]" aria-hidden />
                 <span className="text-xs font-medium text-[#222222] leading-none">스티커</span>
               </NavigationButton>
-              <NavigationButton 
+              {/* <NavigationButton 
                 onClick={triggerOverlaySelect}
                 aria-label="링크 추가"
               >
                 <IconLink className="w-6 h-6 text-[#222222]" aria-hidden />
                 <span className="text-xs font-medium text-[#222222] leading-none">링크</span>
-              </NavigationButton> 
+              </NavigationButton>  */}
               <NavigationButton 
                 onClick={() => addTextOverlay()}
                 aria-label="텍스트 추가"
