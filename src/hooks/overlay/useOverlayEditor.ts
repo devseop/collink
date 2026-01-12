@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { clampScalePercent, computeBaseDimensions, getImageScalePercentMax } from '../../utils/overlayMath';
+import { computeBaseDimensions, IMAGE_SCALE_PERCENT_MIN } from '../../utils/overlayMath';
 import { safeRandomUUID } from '../../utils/random';
 import type { Overlay, TextOverlay } from '../../types/overlay';
 import { useOverlayDrag } from './useOverlayDrag';
@@ -30,23 +30,18 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
   );
   const [isBackgroundColored, setIsBackgroundColored] = useState<boolean>(Boolean(initialIsBackgroundColored));
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
-  const getOverlayMaxScalePercent = useCallback(
-    (baseWidth: number, baseHeight: number) => getImageScalePercentMax(baseWidth, baseHeight),
-    []
-  );
   const normalizeOverlay = useCallback((overlay: Overlay): Overlay => {
     if (overlay.type === 'image') {
       const { baseWidth, baseHeight } = computeBaseDimensions(overlay.baseWidth, overlay.baseHeight);
-      const maxScalePercent = getOverlayMaxScalePercent(baseWidth, baseHeight);
       return {
         ...overlay,
         baseWidth,
         baseHeight,
-        scalePercent: clampScalePercent(overlay.scalePercent ?? 100, maxScalePercent),
+        scalePercent: Math.max(IMAGE_SCALE_PERCENT_MIN, overlay.scalePercent ?? 100),
       };
     }
     return overlay;
-  }, [getOverlayMaxScalePercent]);
+  }, []);
   const [overlays, setOverlays] = useState<Overlay[]>(() =>
     initialOverlays ? initialOverlays.map(normalizeOverlay) : []
   );
@@ -157,15 +152,12 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
         overlay.id === overlayId && overlay.type === 'image'
           ? {
               ...overlay,
-              scalePercent: clampScalePercent(
-                scalePercent,
-                getOverlayMaxScalePercent(overlay.baseWidth, overlay.baseHeight)
-              ),
+              scalePercent: Math.max(IMAGE_SCALE_PERCENT_MIN, scalePercent),
             }
           : overlay
       )
     );
-  }, [getOverlayMaxScalePercent]);
+  }, []);
 
   const startEditingTextOverlay = useCallback((overlayId: string) => {
     setEditingOverlayId(overlayId);

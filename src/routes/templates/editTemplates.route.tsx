@@ -1,7 +1,8 @@
 import { createRoute } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 import templatesRoute from './templates.route';
-import { useOverlayEditor, DEFAULT_IMAGE_SIZE, getImageScalePercentMax } from '../../hooks/overlay/useOverlayEditor';
+import { useOverlayEditor, DEFAULT_IMAGE_SIZE, IMAGE_SCALE_PERCENT_MIN } from '../../hooks/overlay/useOverlayEditor';
 import type { DefaultTemplate } from '../../types/templates';
 import type { Overlay } from '../../types/overlay';
 import { useAuth } from '../../hooks/useAuth';
@@ -24,16 +25,17 @@ import IconSticker from '../../assets/icons/ic_sticker.svg?react';
 import IconLink from '../../assets/icons/ic_link.svg?react';
 import IconImage from '../../assets/icons/ic_image.svg?react';
 import IconClose from '../../assets/icons/ic_close.svg?react';
+import IconDelete from '../../assets/icons/ic_delete_white.svg?react';
 import IconText from '../../assets/icons/ic_text.svg?react';
 import IconPaint from '../../assets/icons/ic_paint.svg?react';
 import IconMotion from '../../assets/icons/ic_motion.svg?react';
+import IconCloseWhite from '../../assets/icons/ic_close_white.svg?react';
+import IconRotateWhite from '../../assets/icons/ic_rotate_white.svg?react';
+import IconScaleWhite from '../../assets/icons/ic_scale_white.svg?react';
 import { safeRandomUUID } from '../../utils/random';
 import Header from '../../components/Header';
 import NavigationButton from '../../components/NavigationButton';
 
-
-const clampScalePercent = (value: number, maxPercent: number, minPercent = IMAGE_SCALE_DEFAULT_PERCENT) =>
-  Math.max(minPercent, Math.min(value, Math.max(maxPercent, minPercent)));
 
 const computeBaseDimensions = (width?: number, height?: number) => {
   const safeWidth = width ?? DEFAULT_IMAGE_SIZE;
@@ -52,10 +54,10 @@ const computeBaseDimensions = (width?: number, height?: number) => {
   };
 };
 
-const deriveScalePercentFromSize = (width: number, height: number, maxPercent: number) => {
+const deriveScalePercentFromSize = (width: number, height: number) => {
   const maxDimension = Math.max(width, height, 1);
   const rawPercent = (maxDimension / DEFAULT_IMAGE_SIZE) * 100;
-  return clampScalePercent(Math.round(rawPercent), maxPercent);
+  return Math.max(IMAGE_SCALE_PERCENT_MIN, Math.round(rawPercent));
 };
 
 const getTextDecorationValue = (underline?: boolean, strikethrough?: boolean) => {
@@ -63,6 +65,19 @@ const getTextDecorationValue = (underline?: boolean, strikethrough?: boolean) =>
   if (underline) parts.push('underline');
   if (strikethrough) parts.push('line-through');
   return parts.length ? parts.join(' ') : 'none';
+};
+
+const getEventPoint = (event: MouseEvent | TouchEvent | ReactMouseEvent | ReactTouchEvent) => {
+  if ('touches' in event) {
+    const touch = event.touches[0] ?? event.changedTouches[0];
+    return { x: touch?.clientX ?? 0, y: touch?.clientY ?? 0 };
+  }
+  return { x: event.clientX, y: event.clientY };
+};
+
+const normalizeRotation = (value: number) => {
+  const mod = value % 360;
+  return mod < 0 ? mod + 360 : mod;
 };
 
 type EditorInitialState = {
@@ -95,8 +110,7 @@ const mapTemplateToEditorState = (template: DefaultTemplate | null): EditorIniti
       const templateWidth = item.size?.width ?? DEFAULT_IMAGE_SIZE;
       const templateHeight = item.size?.height ?? DEFAULT_IMAGE_SIZE;
       const { baseWidth, baseHeight } = computeBaseDimensions(templateWidth, templateHeight);
-      const maxScalePercent = getImageScalePercentMax(baseWidth, baseHeight);
-      const scalePercent = deriveScalePercentFromSize(templateWidth, templateHeight, maxScalePercent);
+      const scalePercent = deriveScalePercentFromSize(templateWidth, templateHeight);
       overlays.push({
         id: safeRandomUUID(),
         type: 'image',
@@ -313,12 +327,6 @@ const editTemplatesRoute = createRoute({
     );
 
     const [linkInputValue, setLinkInputValue] = useState('');
-    const selectedImageScaleMax = selectedImageOverlay
-      ? getImageScalePercentMax(selectedImageOverlay.baseWidth, selectedImageOverlay.baseHeight)
-      : IMAGE_SCALE_DEFAULT_PERCENT;
-    const selectedImageSizePercent = selectedImageOverlay
-      ? clampScalePercent(selectedImageOverlay.scalePercent, selectedImageScaleMax)
-      : IMAGE_SCALE_DEFAULT_PERCENT;
 
     const selectedImageIndex = useMemo(
       () => (selectedImageOverlay ? overlays.findIndex((overlay) => overlay.id === selectedImageOverlay.id) : -1),
@@ -426,22 +434,101 @@ const editTemplatesRoute = createRoute({
       [removeOverlay]
     );
 
-    const handleRotationChange = useCallback(
-      (rotation: number) => {
-        if (!selectedImageId) return;
-        updateImageRotation(selectedImageId, rotation);
+    const imageElementRefs = useRef<Record<string, HTMLImageElement | null>>({});
+    const transformRef = useRef<{
+      mode: 'rotate' | 'scale';
+      overlayId: string;
+      centerX: number;
+      centerY: number;
+      startAngle: number;
+      startRotation: number;
+      startDistance: number;
+      startScale: number;
+    } | null>(null);
+    const transformMoveRef = useRef<(event: MouseEvent | TouchEvent) => void>(() => {});
+    const transformEndRef = useRef<(event?: Event) => void>(() => {});
+
+    const stopTransform = useCallback(() => {
+      const moveHandler = transformMoveRef.current;
+      const endHandler = transformEndRef.current;
+      if (moveHandler) {
+        window.removeEventListener('mousemove', moveHandler);
+        window.removeEventListener('touchmove', moveHandler);
+      }
+      if (endHandler) {
+        window.removeEventListener('mouseup', endHandler);
+        window.removeEventListener('touchend', endHandler);
+        window.removeEventListener('touchcancel', endHandler);
+      }
+      transformMoveRef.current = () => {};
+      transformEndRef.current = () => {};
+      transformRef.current = null;
+    }, []);
+
+    const handleTransformMove = useCallback(
+      (event: MouseEvent | TouchEvent) => {
+        const active = transformRef.current;
+        if (!active) return;
+        if ('preventDefault' in event && event.cancelable) {
+          event.preventDefault();
+        }
+        const point = getEventPoint(event);
+        if (active.mode === 'rotate') {
+          const angle = Math.atan2(point.y - active.centerY, point.x - active.centerX);
+          const delta = angle - active.startAngle;
+          const nextRotation = normalizeRotation(active.startRotation + (delta * 180) / Math.PI);
+          updateImageRotation(active.overlayId, nextRotation);
+          return;
+        }
+        if (active.startDistance === 0) return;
+        const distance = Math.hypot(point.x - active.centerX, point.y - active.centerY);
+        const nextScale = Math.max(
+          IMAGE_SCALE_PERCENT_MIN,
+          Math.round(active.startScale * (distance / active.startDistance))
+        );
+        updateImageScalePercent(active.overlayId, nextScale);
       },
-      [selectedImageId, updateImageRotation]
+      [updateImageRotation, updateImageScalePercent]
     );
 
-    const handleImageScaleChange = useCallback(
-      (sizePercent: number) => {
-        if (!selectedImageId) return;
-        const clampedValue = clampScalePercent(sizePercent, selectedImageScaleMax);
-        updateImageScalePercent(selectedImageId, clampedValue);
+    const startTransform = useCallback(
+      (event: ReactMouseEvent | ReactTouchEvent, overlay: Overlay, mode: 'rotate' | 'scale') => {
+        if (overlay.type !== 'image') return;
+        const imageElement = imageElementRefs.current[overlay.id];
+        if (!imageElement) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const rect = imageElement.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const point = getEventPoint(event);
+        const startAngle = Math.atan2(point.y - centerY, point.x - centerX);
+        const startDistance = Math.hypot(point.x - centerX, point.y - centerY);
+        transformRef.current = {
+          mode,
+          overlayId: overlay.id,
+          centerX,
+          centerY,
+          startAngle,
+          startRotation: overlay.rotation ?? 0,
+          startDistance,
+          startScale: overlay.scalePercent ?? IMAGE_SCALE_DEFAULT_PERCENT,
+        };
+
+        const moveHandler = (moveEvent: MouseEvent | TouchEvent) => handleTransformMove(moveEvent);
+        const endHandler = () => stopTransform();
+        transformMoveRef.current = moveHandler;
+        transformEndRef.current = endHandler;
+        window.addEventListener('mousemove', moveHandler);
+        window.addEventListener('mouseup', endHandler);
+        window.addEventListener('touchmove', moveHandler, { passive: false });
+        window.addEventListener('touchend', endHandler);
+        window.addEventListener('touchcancel', endHandler);
       },
-      [selectedImageId, selectedImageScaleMax, updateImageScalePercent]
+      [handleTransformMove, stopTransform]
     );
+
+    useEffect(() => stopTransform, [stopTransform]);
 
     const handleLinkUrlConfirm = useCallback(() => {
       if (!selectedImageOverlay) return;
@@ -513,13 +600,12 @@ const editTemplatesRoute = createRoute({
         {overlays.map((overlay, index) => {
           const isText = overlay.type === 'text';
           const isEditing = isText && editingOverlayId === overlay.id;
+          const isSelected = selectedImageId === overlay.id || selectedTextId === overlay.id;
 
             return (
               <div
                 key={overlay.id}
-                className={`fixed z-20 touch-none ${
-                  selectedImageId === overlay.id || selectedTextId === overlay.id ? 'ring-2 ring-[#FF5C00]' : ''
-                }`}
+                className={`fixed z-20 touch-none ${isSelected ? 'p-2' : ''}`}
                 style={{
                   left: `${overlay.x}px`,
                   top: `${overlay.y}px`,
@@ -542,66 +628,115 @@ const editTemplatesRoute = createRoute({
                   }
                 }}
               >
-              <div className="relative">
-                {isText ? (
-                  isEditing ? (
-                    <textarea
-                      autoFocus
-                      value={overlay.text}
-                      onChange={(event) => updateTextOverlay(overlay.id, event.target.value)}
-                      onBlur={() => finishEditingTextOverlay()}
-                      onMouseDown={(event) => event.stopPropagation()}
-                      className="min-w-[140px] min-h-[48px] rounded-lg bg-white/90 border border-black/20 px-3 py-2 shadow-lg text-center focus:outline-none focus:ring-2 focus:ring-black"
-                      style={{
-                        fontSize: `${overlay.fontSize}px`,
-                        fontWeight: overlay.fontWeight,
-                        fontFamily: overlay.fontFamily,
-                        textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
-                      }}
-                      placeholder=""
-                      />
+              <div className="relative p-2">
+                {isSelected && (
+                  <div className="pointer-events-none absolute inset-0 z-10" aria-hidden>
+                    <div className="absolute -inset-1.5 border-2 border-dashed border-[#B1FF8D]" />
+                    <span className="absolute -top-1.5 -left-1.5 h-1 w-1 bg-[#B1FF8D]" />
+                    <span className="absolute -top-1.5 -right-1.5 h-1 w-1 bg-[#B1FF8D]" />
+                    <span className="absolute -bottom-1.5 -left-1.5 h-1 w-1 bg-[#B1FF8D]" />
+                    <span className="absolute -bottom-1.5 -right-1.5 h-1 w-1 bg-[#B1FF8D]" />
+                  </div>
+                )}
+                <div className="relative z-20 m-4">
+                  {isText ? (
+                    isEditing ? (
+                      <textarea
+                        autoFocus
+                        value={overlay.text}
+                        onChange={(event) => updateTextOverlay(overlay.id, event.target.value)}
+                        onBlur={() => finishEditingTextOverlay()}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        className="min-w-[140px] min-h-[48px] rounded-md bg-white/90 px-2 py-2 shadow-lg text-center focus:outline-none focus:ring-2 focus:ring-black"
+                        style={{
+                          fontSize: `${overlay.fontSize}px`,
+                          fontWeight: overlay.fontWeight,
+                          fontFamily: overlay.fontFamily,
+                          textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
+                        }}
+                        placeholder=""
+                        />
+                    ) : (
+                      // focused state
+                      <div
+                        className="min-w-[140px] min-h-[48px] rounded-md backdrop-blur-sm p-2 shadow-lg text-center cursor-text"
+                        style={{
+                          fontSize: `${overlay.fontSize}px`,
+                          fontWeight: overlay.fontWeight,
+                          fontFamily: overlay.fontFamily,
+                          textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
+                        }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          startEditingTextOverlay(overlay.id);
+                          setSelectedTextId(overlay.id);
+                        }}
+                      >
+                        {overlay.text || ''}
+                      </div>
+                    )
                   ) : (
-                    // focused state
-                    <div
-                      className="min-w-[140px] min-h-[48px] rounded-lg bg-white/40 backdrop-blur-sm border border-white px-4 py-3 shadow-lg text-center cursor-text"
+                    <img
+                      ref={(node) => {
+                        imageElementRefs.current[overlay.id] = node;
+                      }}
+                      src={overlay.image}
+                      alt={`오버레이 ${index + 1}`}
+                      className="object-cover rounded-md shadow-md pointer-events-none"
                       style={{
-                        fontSize: `${overlay.fontSize}px`,
-                        fontWeight: overlay.fontWeight,
-                        fontFamily: overlay.fontFamily,
-                        textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
+                        width: (overlay.baseWidth * overlay.scalePercent) / 100,
+                        height: (overlay.baseHeight * overlay.scalePercent) / 100,
+                        transform: `rotate(${overlay.rotation ?? 0}deg)`,
+                      }}
+                      draggable={false}
+                    />
+                  )}
+                </div>
+                {isSelected && (
+                  <div className="pointer-events-none absolute inset-0 z-30">
+                    <button
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onTouchStart={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
                       }}
                       onClick={(event) => {
                         event.stopPropagation();
-                        startEditingTextOverlay(overlay.id);
-                        setSelectedTextId(overlay.id);
+                        handleRemoveOverlayElement(overlay.id);
                       }}
+                      className="pointer-events-auto absolute -top-3 -left-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#FF4D4D] text-xs text-white transition-colors hover:bg-red-600"
+                      aria-label="요소 제거"
                     >
-                      {overlay.text || ''}
-                    </div>
-                  )
-                ) : (
-                  <img
-                    src={overlay.image}
-                    alt={`오버레이 ${index + 1}`}
-                    className="object-cover rounded-lg shadow-lg border-2 border-white pointer-events-none"
-                    style={{
-                      width: (overlay.baseWidth * overlay.scalePercent) / 100,
-                      height: (overlay.baseHeight * overlay.scalePercent) / 100,
-                      transform: `rotate(${overlay.rotation ?? 0}deg)`,
-                    }}
-                    draggable={false}
-                  />
+                      <IconCloseWhite className="h-4 w-4" aria-hidden />
+                    </button>
+                    {overlay.type === 'image' && (
+                      <>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => startTransform(event, overlay, 'rotate')}
+                          onTouchStart={(event) => startTransform(event, overlay, 'rotate')}
+                          className="pointer-events-auto absolute -top-3 -right-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
+                          aria-label="요소 회전"
+                        >
+                          <IconRotateWhite className="h-4 w-4" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => startTransform(event, overlay, 'scale')}
+                          onTouchStart={(event) => startTransform(event, overlay, 'scale')}
+                          className="pointer-events-auto absolute -bottom-3 -right-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
+                          aria-label="요소 크기 조절"
+                        >
+                          <IconScaleWhite className="h-4 w-4" aria-hidden />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleRemoveOverlayElement(overlay.id);
-                  }}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors text-xs z-40"
-                  aria-label="요소 제거"
-                >
-                  ×
-                </button>
               </div>
             </div>
           );
@@ -656,41 +791,6 @@ const editTemplatesRoute = createRoute({
                       앞으로
                     </button>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-[#101010]">이미지 회전</p>
-                  <span className="text-xs text-[#6B6B6B]">{Math.round(selectedImageOverlay.rotation ?? 0)}°</span>
-                </div>
-                <input
-                  type="range"
-                  min={-90}
-                  max={90}
-                  value={selectedImageOverlay.rotation}
-                  onChange={(event) => handleRotationChange(Number(event.target.value))}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[11px] text-[#A0A0A0]">
-                  <span>-90°</span>
-                  <span>0°</span>
-                  <span>90°</span>
-                </div>
-
-                <div className="flex items-center justify-between pt-2">
-                  <p className="text-sm font-semibold text-[#101010]">이미지 크기</p>
-                  <span className="text-xs text-[#6B6B6B]">{selectedImageSizePercent}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={IMAGE_SCALE_DEFAULT_PERCENT}
-                  max={selectedImageScaleMax}
-                  value={selectedImageSizePercent}
-                  onChange={(event) => handleImageScaleChange(Number(event.target.value))}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[11px] text-[#A0A0A0]">
-                  <span>default</span>
-                  <span>max</span>
                 </div>
 
                 <div className="flex flex-col gap-2 pt-2">
@@ -845,11 +945,11 @@ const editTemplatesRoute = createRoute({
         {showBackgroundOptions && (
           <div className="fixed left-0 right-0 bottom-0 z-50">
             <div
-              className="mb-0 bg-white backdrop-blur-sm shadow-[0_-1px_12px_rgba(0,0,0,0.2)] flex flex-col gap-5 rounded-t-lg"
+              className={`mb-0 bg-white backdrop-blur-sm shadow-[0_-1px_12px_rgba(0,0,0,0.2)] flex flex-col  rounded-t-lg ${showBackgroundToggle ? 'gap-2 rounded-b-lg' : 'gap-5'}`}
               onMouseDown={(event) => event.stopPropagation()}
               onTouchStart={(event) => event.stopPropagation()}
             >
-              <div className="grid grid-cols-[1fr_auto_1fr] items-center px-5 py-5 border-b border-[#D3D3D3]">
+              <div className={`grid grid-cols-[1fr_auto_1fr] items-center px-5 py-5 ${!showBackgroundToggle && 'border-b border-[#D3D3D3]'}`}>
                 <p className="col-start-2 text-base font-semibold text-[#222222] leading-none text-center">
                   {!showBackgroundToggle ? '배경색 고르기' : '배경 수정'}
                 </p>
@@ -889,7 +989,7 @@ const editTemplatesRoute = createRoute({
 
               {showBackgroundToggle && backgroundMode === 'image' ? (
                 <div className="flex flex-col gap-2 px-5 mb-10">
-                  <div className="flex flex-col items-center justify-center">
+                  <div className="flex flex-col items-center justify-center mt-4">
                     <div className="mx-auto flex items-center justify-center">
                       <IconImage className="h-10 w-10 text-[#222222]" aria-hidden />
                     </div>
