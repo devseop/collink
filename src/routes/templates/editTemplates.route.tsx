@@ -134,6 +134,8 @@ const mapTemplateToEditorState = (template: DefaultTemplate | null): EditorIniti
         fontSize: item.font?.size ?? DEFAULT_TEXT_FONT_SIZE,
         fontWeight: item.font?.weight ?? DEFAULT_TEXT_FONT_WEIGHT,
         fontFamily: item.font?.family ?? DEFAULT_TEXT_FONT_FAMILY,
+        rotation: item.rotation ?? 0,
+        scalePercent: IMAGE_SCALE_DEFAULT_PERCENT,
         underline: item.font?.decoration?.includes('underline'),
         strikethrough: item.font?.decoration?.includes('line-through'),
         ...basePosition,
@@ -176,6 +178,8 @@ const overlaysEqual = (a: Overlay[], b: Overlay[]) => {
         left.fontSize !== right.fontSize ||
         left.fontWeight !== right.fontWeight ||
         left.fontFamily !== right.fontFamily ||
+        left.rotation !== right.rotation ||
+        left.scalePercent !== right.scalePercent ||
         left.underline !== right.underline ||
         left.strikethrough !== right.strikethrough
       ) {
@@ -434,7 +438,7 @@ const editTemplatesRoute = createRoute({
       [removeOverlay]
     );
 
-    const imageElementRefs = useRef<Record<string, HTMLImageElement | null>>({});
+    const overlayElementRefs = useRef<Record<string, HTMLElement | null>>({});
     const transformRef = useRef<{
       mode: 'rotate' | 'scale';
       overlayId: string;
@@ -493,12 +497,11 @@ const editTemplatesRoute = createRoute({
 
     const startTransform = useCallback(
       (event: ReactMouseEvent | ReactTouchEvent, overlay: Overlay, mode: 'rotate' | 'scale') => {
-        if (overlay.type !== 'image') return;
-        const imageElement = imageElementRefs.current[overlay.id];
-        if (!imageElement) return;
+        const overlayElement = overlayElementRefs.current[overlay.id];
+        if (!overlayElement) return;
         event.preventDefault();
         event.stopPropagation();
-        const rect = imageElement.getBoundingClientRect();
+        const rect = overlayElement.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
         const point = getEventPoint(event);
@@ -638,35 +641,49 @@ const editTemplatesRoute = createRoute({
                     <span className="absolute -bottom-1.5 -right-1.5 h-1 w-1 bg-[#B1FF8D]" />
                   </div>
                 )}
-                <div className="relative z-20 m-4">
+                <div className="relative z-20">
                   {isText ? (
                     isEditing ? (
                       <textarea
                         autoFocus
+                        ref={(node) => {
+                          overlayElementRefs.current[overlay.id] = node;
+                        }}
                         value={overlay.text}
                         onChange={(event) => updateTextOverlay(overlay.id, event.target.value)}
                         onBlur={() => finishEditingTextOverlay()}
                         onMouseDown={(event) => event.stopPropagation()}
-                        className="min-w-[140px] min-h-[48px] rounded-md bg-white/90 px-2 py-2 shadow-lg text-center focus:outline-none focus:ring-2 focus:ring-black"
+                        className="min-w-[140px] min-h-[24px] bg-transparent p-2 text-center focus:outline-none"
                         style={{
                           fontSize: `${overlay.fontSize}px`,
                           fontWeight: overlay.fontWeight,
                           fontFamily: overlay.fontFamily,
                           textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
+                          transform: `rotate(${overlay.rotation ?? 0}deg) scale(${(overlay.scalePercent ?? IMAGE_SCALE_DEFAULT_PERCENT) / 100})`,
+                          transformOrigin: 'center',
                         }}
                         placeholder=""
                         />
                     ) : (
                       // focused state
                       <div
-                        className="min-w-[140px] min-h-[48px] rounded-md backdrop-blur-sm p-2 shadow-lg text-center cursor-text"
+                        ref={(node) => {
+                          overlayElementRefs.current[overlay.id] = node;
+                        }}
+                        className="w-[140px] min-h-[24px] text-shadow-lg/30 text-center cursor-text"
                         style={{
                           fontSize: `${overlay.fontSize}px`,
                           fontWeight: overlay.fontWeight,
                           fontFamily: overlay.fontFamily,
                           textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
+                          transform: `rotate(${overlay.rotation ?? 0}deg) scale(${(overlay.scalePercent ?? IMAGE_SCALE_DEFAULT_PERCENT) / 100})`,
+                          transformOrigin: 'center',
                         }}
                         onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedTextId(overlay.id);
+                        }}
+                        onDoubleClick={(event) => {
                           event.stopPropagation();
                           startEditingTextOverlay(overlay.id);
                           setSelectedTextId(overlay.id);
@@ -678,7 +695,7 @@ const editTemplatesRoute = createRoute({
                   ) : (
                     <img
                       ref={(node) => {
-                        imageElementRefs.current[overlay.id] = node;
+                        overlayElementRefs.current[overlay.id] = node;
                       }}
                       src={overlay.image}
                       alt={`오버레이 ${index + 1}`}
@@ -713,28 +730,26 @@ const editTemplatesRoute = createRoute({
                     >
                       <IconCloseWhite className="h-4 w-4" aria-hidden />
                     </button>
-                    {overlay.type === 'image' && (
-                      <>
-                        <button
-                          type="button"
-                          onMouseDown={(event) => startTransform(event, overlay, 'rotate')}
-                          onTouchStart={(event) => startTransform(event, overlay, 'rotate')}
-                          className="pointer-events-auto absolute -top-3 -right-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
-                          aria-label="요소 회전"
-                        >
-                          <IconRotateWhite className="h-4 w-4" aria-hidden />
-                        </button>
-                        <button
-                          type="button"
-                          onMouseDown={(event) => startTransform(event, overlay, 'scale')}
-                          onTouchStart={(event) => startTransform(event, overlay, 'scale')}
-                          className="pointer-events-auto absolute -bottom-3 -right-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
-                          aria-label="요소 크기 조절"
-                        >
-                          <IconScaleWhite className="h-4 w-4" aria-hidden />
-                        </button>
-                      </>
-                    )}
+                    <>
+                      <button
+                        type="button"
+                        onMouseDown={(event) => startTransform(event, overlay, 'rotate')}
+                        onTouchStart={(event) => startTransform(event, overlay, 'rotate')}
+                        className="pointer-events-auto absolute -top-3 -right-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
+                        aria-label="요소 회전"
+                      >
+                        <IconRotateWhite className="h-4 w-4" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onMouseDown={(event) => startTransform(event, overlay, 'scale')}
+                        onTouchStart={(event) => startTransform(event, overlay, 'scale')}
+                        className="pointer-events-auto absolute -bottom-3 -right-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
+                        aria-label="요소 크기 조절"
+                      >
+                        <IconScaleWhite className="h-4 w-4" aria-hidden />
+                      </button>
+                    </>
                   </div>
                 )}
               </div>

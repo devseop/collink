@@ -259,6 +259,8 @@ const previewTemplatesRoute = createRoute({
                       fontWeight: overlay.fontWeight,
                       fontFamily: overlay.fontFamily,
                       textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
+                      transform: `rotate(${overlay.rotation ?? 0}deg) scale(${(overlay.scalePercent ?? 100) / 100})`,
+                      transformOrigin: 'center',
                     }}
                   >
                     {overlay.text || '텍스트를 입력하세요'}

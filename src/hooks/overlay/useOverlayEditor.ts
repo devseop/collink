@@ -40,7 +40,11 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
         scalePercent: Math.max(IMAGE_SCALE_PERCENT_MIN, overlay.scalePercent ?? 100),
       };
     }
-    return overlay;
+    return {
+      ...overlay,
+      rotation: overlay.rotation ?? 0,
+      scalePercent: Math.max(IMAGE_SCALE_PERCENT_MIN, overlay.scalePercent ?? 100),
+    };
   }, []);
   const [overlays, setOverlays] = useState<Overlay[]>(() =>
     initialOverlays ? initialOverlays.map(normalizeOverlay) : []
@@ -76,6 +80,8 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
         fontSize: 18,
         fontWeight: 600,
         fontFamily: 'classic',
+        rotation: 0,
+        scalePercent: 100,
         underline: false,
         strikethrough: false,
         x: 140 + prev.length * 20,
@@ -136,7 +142,7 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
   const updateImageRotation = useCallback((overlayId: string, rotation: number) => {
     setOverlays((prev) =>
       prev.map((overlay) =>
-        overlay.id === overlayId && overlay.type === 'image'
+        overlay.id === overlayId
           ? {
               ...overlay,
               rotation,
@@ -149,7 +155,7 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
   const updateImageScalePercent = useCallback((overlayId: string, scalePercent: number) => {
     setOverlays((prev) =>
       prev.map((overlay) =>
-        overlay.id === overlayId && overlay.type === 'image'
+        overlay.id === overlayId
           ? {
               ...overlay,
               scalePercent: Math.max(IMAGE_SCALE_PERCENT_MIN, scalePercent),
