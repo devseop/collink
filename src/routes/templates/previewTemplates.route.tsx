@@ -19,6 +19,41 @@ const getTextDecorationValue = (underline?: boolean, strikethrough?: boolean) =>
   return parts.length ? parts.join(' ') : 'none';
 };
 
+const parseHexColor = (value: string) => {
+  const raw = value.replace('#', '').trim();
+  if (raw.length === 3) {
+    const r = parseInt(raw[0] + raw[0], 16);
+    const g = parseInt(raw[1] + raw[1], 16);
+    const b = parseInt(raw[2] + raw[2], 16);
+    return { r, g, b };
+  }
+  if (raw.length === 6) {
+    const r = parseInt(raw.slice(0, 2), 16);
+    const g = parseInt(raw.slice(2, 4), 16);
+    const b = parseInt(raw.slice(4, 6), 16);
+    return { r, g, b };
+  }
+  return null;
+};
+
+const toRgba = (hex: string, alpha: number) => {
+  const rgb = parseHexColor(hex);
+  if (!rgb) return hex;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+};
+
+const getTextBoxStyles = (color: string, boxStyle?: number) => {
+  const baseColor = color || '#222222';
+  const faded = toRgba(baseColor, 0.1);
+  if (boxStyle === 1) {
+    return { color: baseColor, backgroundColor: faded };
+  }
+  if (boxStyle === 2) {
+    return { color: faded, backgroundColor: baseColor };
+  }
+  return { color: baseColor, backgroundColor: 'transparent' };
+};
+
 const previewTemplatesRoute = createRoute({
   path: 'preview',
   getParentRoute: () => templatesRoute,
@@ -185,7 +220,7 @@ const previewTemplatesRoute = createRoute({
               font: {
                 size: overlay.fontSize,
                 weight: overlay.fontWeight,
-                color: '#000000',
+                color: overlay.textColor ?? '#000000',
                 family: overlay.fontFamily ?? 'classic',
                 decoration: getTextDecorationValue(overlay.underline, overlay.strikethrough) as 'underline' | 'line-through' | 'none' | 'underline line-through' | undefined,
               },
@@ -238,6 +273,9 @@ const previewTemplatesRoute = createRoute({
 
         {committed.overlays.map((overlay, index) => {
           const isText = overlay.type === 'text';
+          const textBoxStyles = isText
+            ? getTextBoxStyles(overlay.textColor ?? '#222222', overlay.boxStyle ?? 0)
+            : null;
 
           const positionStyle = computePositionStyle(overlay, index);
 
@@ -258,9 +296,11 @@ const previewTemplatesRoute = createRoute({
                       fontSize: `${overlay.fontSize}px`,
                       fontWeight: overlay.fontWeight,
                       fontFamily: overlay.fontFamily,
+                      color: textBoxStyles?.color ?? overlay.textColor ?? '#222222',
                       textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
                       transform: `rotate(${overlay.rotation ?? 0}deg) scale(${(overlay.scalePercent ?? 100) / 100})`,
                       transformOrigin: 'center',
+                      backgroundColor: textBoxStyles?.backgroundColor,
                     }}
                   >
                     {overlay.text || '텍스트를 입력하세요'}

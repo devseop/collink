@@ -8,7 +8,6 @@ import type { Overlay } from '../../types/overlay';
 import { useAuth } from '../../hooks/useAuth';
 import router from '../router';
 import { useTemplateSelectionStore } from '../../stores/templateSelectionStore';
-import { HexColorPicker } from 'react-colorful';
 import { useTemplateEditorStore, type TemplateEditorSnapshot } from '../../stores/templateEditorStore';
 import {
   DEFAULT_TEXT_FONT_FAMILY,
@@ -16,25 +15,14 @@ import {
   DEFAULT_TEXT_FONT_WEIGHT,
   FALLBACK_POSITION,
   IMAGE_SCALE_DEFAULT_PERCENT,
-  TEXT_FONT_FAMILIES,
-  TEXT_FONT_SIZES,
-  TEXT_FONT_WEIGHTS,
 } from '../../constants/templates';
-import IconArrowRight from '../../assets/icons/ic_arrow_right.svg?react';
-import IconSticker from '../../assets/icons/ic_sticker.svg?react';
-import IconLink from '../../assets/icons/ic_link.svg?react';
-import IconImage from '../../assets/icons/ic_image.svg?react';
-import IconClose from '../../assets/icons/ic_close.svg?react';
-import IconDelete from '../../assets/icons/ic_delete_white.svg?react';
-import IconText from '../../assets/icons/ic_text.svg?react';
-import IconPaint from '../../assets/icons/ic_paint.svg?react';
-import IconMotion from '../../assets/icons/ic_motion.svg?react';
-import IconCloseWhite from '../../assets/icons/ic_close_white.svg?react';
-import IconRotateWhite from '../../assets/icons/ic_rotate_white.svg?react';
-import IconScaleWhite from '../../assets/icons/ic_scale_white.svg?react';
 import { safeRandomUUID } from '../../utils/random';
 import Header from '../../components/Header';
-import NavigationButton from '../../components/NavigationButton';
+import EmptyState from './components/EmptyState';
+import OverlayCanvas from './components/OverlayCanvas';
+import OverlayEditModal from './components/OverlayEditModal';
+import BackgroundOptionsModal from './components/BackgroundOptionsModal';
+import OverlayNavBar from './components/OverlayNavBar';
 
 
 const computeBaseDimensions = (width?: number, height?: number) => {
@@ -65,6 +53,41 @@ const getTextDecorationValue = (underline?: boolean, strikethrough?: boolean) =>
   if (underline) parts.push('underline');
   if (strikethrough) parts.push('line-through');
   return parts.length ? parts.join(' ') : 'none';
+};
+
+const parseHexColor = (value: string) => {
+  const raw = value.replace('#', '').trim();
+  if (raw.length === 3) {
+    const r = parseInt(raw[0] + raw[0], 16);
+    const g = parseInt(raw[1] + raw[1], 16);
+    const b = parseInt(raw[2] + raw[2], 16);
+    return { r, g, b };
+  }
+  if (raw.length === 6) {
+    const r = parseInt(raw.slice(0, 2), 16);
+    const g = parseInt(raw.slice(2, 4), 16);
+    const b = parseInt(raw.slice(4, 6), 16);
+    return { r, g, b };
+  }
+  return null;
+};
+
+const toRgba = (hex: string, alpha: number) => {
+  const rgb = parseHexColor(hex);
+  if (!rgb) return hex;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+};
+
+const getTextBoxStyles = (color: string, boxStyle?: number) => {
+  const baseColor = color || '#222222';
+  const faded = toRgba(baseColor, 0.1);
+  if (boxStyle === 1) {
+    return { color: baseColor, backgroundColor: faded };
+  }
+  if (boxStyle === 2) {
+    return { color: faded, backgroundColor: baseColor };
+  }
+  return { color: baseColor, backgroundColor: 'transparent' };
 };
 
 const getEventPoint = (event: MouseEvent | TouchEvent | ReactMouseEvent | ReactTouchEvent) => {
@@ -136,6 +159,7 @@ const mapTemplateToEditorState = (template: DefaultTemplate | null): EditorIniti
         fontFamily: item.font?.family ?? DEFAULT_TEXT_FONT_FAMILY,
         rotation: item.rotation ?? 0,
         scalePercent: IMAGE_SCALE_DEFAULT_PERCENT,
+        textColor: item.font?.color ?? '#222222',
         underline: item.font?.decoration?.includes('underline'),
         strikethrough: item.font?.decoration?.includes('line-through'),
         ...basePosition,
@@ -178,6 +202,7 @@ const overlaysEqual = (a: Overlay[], b: Overlay[]) => {
         left.fontSize !== right.fontSize ||
         left.fontWeight !== right.fontWeight ||
         left.fontFamily !== right.fontFamily ||
+        left.textColor !== right.textColor ||
         left.rotation !== right.rotation ||
         left.scalePercent !== right.scalePercent ||
         left.underline !== right.underline ||
@@ -203,6 +228,8 @@ const editTemplatesRoute = createRoute({
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
     const [keyboardInset, setKeyboardInset] = useState(0);
+    const [showTextColorPicker, setShowTextColorPicker] = useState(false);
+    const [textColorValue, setTextColorValue] = useState('#222222');
     const keyboardBaselineRef = useRef<number | null>(null);
     const [backgroundOptionsSource, setBackgroundOptionsSource] = useState<'empty' | 'navbar' | null>(null);
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
@@ -338,14 +365,8 @@ const editTemplatesRoute = createRoute({
       () => (selectedImageOverlay ? overlays.findIndex((overlay) => overlay.id === selectedImageOverlay.id) : -1),
       [overlays, selectedImageOverlay]
     );
-    const selectedTextIndex = useMemo(
-      () => (selectedTextOverlay ? overlays.findIndex((overlay) => overlay.id === selectedTextOverlay.id) : -1),
-      [overlays, selectedTextOverlay]
-    );
     const canMoveImageUp = selectedImageIndex >= 0 && selectedImageIndex < overlays.length - 1;
     const canMoveImageDown = selectedImageIndex > 0;
-    const canMoveTextUp = selectedTextIndex >= 0 && selectedTextIndex < overlays.length - 1;
-    const canMoveTextDown = selectedTextIndex > 0;
 
     useEffect(() => {
       if (!editingOverlayId) return;
@@ -402,6 +423,14 @@ const editTemplatesRoute = createRoute({
     useEffect(() => {
       setLinkInputValue(selectedImageOverlay?.linkUrl ?? '');
     }, [selectedImageOverlay]);
+
+    useEffect(() => {
+      if (!selectedTextOverlay) {
+        setShowTextColorPicker(false);
+        return;
+      }
+      setTextColorValue(selectedTextOverlay.textColor ?? '#222222');
+    }, [selectedTextOverlay]);
 
     const handleSaveTemplate = useCallback(async () => {
       if (!user) {
@@ -622,9 +651,20 @@ const editTemplatesRoute = createRoute({
     }, [linkInputValue, selectedImageOverlay, updateImageLink]);
 
     const handleTextStyleChange = useCallback(
-      (style: { fontFamily?: string; fontSize?: number; fontWeight?: number; underline?: boolean; strikethrough?: boolean }) => {
+      (style: { fontFamily?: string; fontSize?: number; fontWeight?: number; underline?: boolean; strikethrough?: boolean; textColor?: string }) => {
         if (!selectedTextId) return;
         updateTextStyle(selectedTextId, style);
+      },
+      [selectedTextId, updateTextStyle]
+    );
+
+    const isTextModalFloating = Boolean(selectedTextOverlay && !editingOverlayId);
+
+    const handleTextColorChange = useCallback(
+      (color: string) => {
+        setTextColorValue(color);
+        if (!selectedTextId) return;
+        updateTextStyle(selectedTextId, { textColor: color });
       },
       [selectedTextId, updateTextStyle]
     );
@@ -649,199 +689,44 @@ const editTemplatesRoute = createRoute({
         )}
 
         {isEmptyState && (
-          <div className='flex justify-center items-center px-5 pt-[68px] pb-12 h-dvh'>
-          <div className="w-full h-full min-w-[320px] border border-dashed border-[#CFCFCF] rounded-2xl  text-center bg-white/70">
-            <div className='flex flex-col items-center justify-center h-full'>
-                <div className="mx-auto mb-4 flex items-center justify-center">
-                  <IconImage className="h-14 w-14 text-[#222222]" aria-hidden />
-                </div>
-                <div className='flex flex-col items-center justify-center gap-2 mt-3 mb-6'>
-                  <p className="text-sm font-medium text-[#222222] leading-none">원하는 이미지나 배경색을 선택해주세요.</p>
-                  <p className="text-xs font-regular text-[#7A7A7A] leading-none">50MB 이하의 JPEG, PNG, and MP4만 가능해요.</p>
-                </div>
-                <div className="flex flex-row gap-3 justify-center">
-                  <button
-                    onClick={() => triggerBackgroundSelect()}
-                    className="w-fit rounded-lg border border-[#D3D3D3] px-4 py-[10px] text-sm font-medium text-[#222222] leading-none"
-                  >
-                    이미지 고르기
-                  </button>
-                  <button
-                    onClick={() => {
-                      setBackgroundOptionsSource('empty');
-                      setBackgroundMode('color');
-                      setShowBackgroundOptions(true);
-                    }}
-                    className="w-fit rounded-lg border border-[#D3D3D3] px-4 py-[10px] text-sm font-medium text-[#222222] leading-none"
-                  >
-                    배경색 고르기
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <EmptyState
+            onSelectImage={triggerBackgroundSelect}
+            onSelectColor={() => {
+              setBackgroundOptionsSource('empty');
+              setBackgroundMode('color');
+              setShowBackgroundOptions(true);
+            }}
+          />
         )}
 
-        {overlays.map((overlay, index) => {
-          const isText = overlay.type === 'text';
-          const isEditing = isText && editingOverlayId === overlay.id;
-          const isSelected = selectedImageId === overlay.id || selectedTextId === overlay.id;
-
-            return (
-              <div
-                key={overlay.id}
-                className={`fixed z-20 touch-none ${isSelected ? 'p-2' : ''}`}
-                style={{
-                  left: `${overlay.x}px`,
-                  top: `${overlay.y}px`,
-                  touchAction: 'none',
-                }}
-                onMouseDown={
-                  !isEditing ? (event) => handleOverlayMouseDown(event, overlay.id) : undefined
-                }
-                onTouchStart={
-                  !isEditing ? (event) => handleOverlayTouchStart(event, overlay.id) : undefined
-                }
-                onClick={(event) => {
-                  event.stopPropagation();
-                  if (!isText) {
-                    setSelectedImageId(overlay.id);
-                    setSelectedTextId(null);
-                  } else {
-                    setSelectedImageId(null);
-                    setSelectedTextId(overlay.id);
-                  }
-                }}
-              >
-              <div className="relative p-2">
-                {isSelected && (
-                  <div className="pointer-events-none absolute inset-0 z-10" aria-hidden>
-                    <div className="absolute -inset-1.5 border-2 border-dashed border-[#B1FF8D]" />
-                    <span className="absolute -top-1.5 -left-1.5 h-1 w-1 bg-[#B1FF8D]" />
-                    <span className="absolute -top-1.5 -right-1.5 h-1 w-1 bg-[#B1FF8D]" />
-                    <span className="absolute -bottom-1.5 -left-1.5 h-1 w-1 bg-[#B1FF8D]" />
-                    <span className="absolute -bottom-1.5 -right-1.5 h-1 w-1 bg-[#B1FF8D]" />
-                  </div>
-                )}
-                <div className="relative z-20">
-                  {isText ? (
-                    isEditing ? (
-                      <textarea
-                        autoFocus
-                        ref={(node) => {
-                          overlayElementRefs.current[overlay.id] = node;
-                        }}
-                        value={overlay.text}
-                        onChange={(event) => updateTextOverlay(overlay.id, event.target.value)}
-                        onBlur={() => finishEditingTextOverlay()}
-                        onMouseDown={(event) => event.stopPropagation()}
-                        className="min-w-[140px] min-h-[24px] bg-transparent p-2 text-center focus:outline-none touch-manipulation"
-                        style={{
-                          fontSize: `${overlay.fontSize}px`,
-                          fontWeight: overlay.fontWeight,
-                          fontFamily: overlay.fontFamily,
-                          textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
-                          transform: `rotate(${overlay.rotation ?? 0}deg) scale(${(overlay.scalePercent ?? IMAGE_SCALE_DEFAULT_PERCENT) / 100})`,
-                          transformOrigin: 'center',
-                          caretColor: '#B1FF8D',
-                        }}
-                        placeholder=""
-                        />
-                    ) : (
-                      // focused state
-                      <div
-                        ref={(node) => {
-                          overlayElementRefs.current[overlay.id] = node;
-                        }}
-                        className="w-[140px] min-h-[24px] text-shadow-lg/30 text-center cursor-text touch-manipulation"
-                        style={{
-                          fontSize: `${overlay.fontSize}px`,
-                          fontWeight: overlay.fontWeight,
-                          fontFamily: overlay.fontFamily,
-                          textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
-                          transform: `rotate(${overlay.rotation ?? 0}deg) scale(${(overlay.scalePercent ?? IMAGE_SCALE_DEFAULT_PERCENT) / 100})`,
-                          transformOrigin: 'center',
-                        }}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedTextId(overlay.id);
-                        }}
-                        onTouchStart={(event) => handleTextOverlayTouchStart(event, overlay.id)}
-                        onTouchMove={(event) => handleTextOverlayTouchMove(event, overlay.id)}
-                        onTouchEnd={(event) => handleTextOverlayTouchEnd(event, overlay.id)}
-                        onDoubleClick={(event) => {
-                          event.stopPropagation();
-                          startEditingTextOverlay(overlay.id);
-                          setSelectedTextId(overlay.id);
-                        }}
-                      >
-                        {overlay.text || ''}
-                      </div>
-                    )
-                  ) : (
-                    <img
-                      ref={(node) => {
-                        overlayElementRefs.current[overlay.id] = node;
-                      }}
-                      src={overlay.image}
-                      alt={`오버레이 ${index + 1}`}
-                      className="object-cover rounded-md shadow-md pointer-events-none"
-                      style={{
-                        width: (overlay.baseWidth * overlay.scalePercent) / 100,
-                        height: (overlay.baseHeight * overlay.scalePercent) / 100,
-                        transform: `rotate(${overlay.rotation ?? 0}deg)`,
-                      }}
-                      draggable={false}
-                    />
-                  )}
-                </div>
-                {isSelected && (
-                  <div className="pointer-events-none absolute inset-0 z-30">
-                    <button
-                      type="button"
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                      }}
-                      onTouchStart={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                      }}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleRemoveOverlayElement(overlay.id);
-                      }}
-                      className="pointer-events-auto absolute -top-3 -left-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#FF4D4D] text-xs text-white transition-colors hover:bg-red-600"
-                      aria-label="요소 제거"
-                    >
-                      <IconCloseWhite className="h-4 w-4" aria-hidden />
-                    </button>
-                    <>
-                      <button
-                        type="button"
-                        onMouseDown={(event) => startTransform(event, overlay, 'rotate')}
-                        onTouchStart={(event) => startTransform(event, overlay, 'rotate')}
-                        className="pointer-events-auto absolute -top-3 -right-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
-                        aria-label="요소 회전"
-                      >
-                        <IconRotateWhite className="h-4 w-4" aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        onMouseDown={(event) => startTransform(event, overlay, 'scale')}
-                        onTouchStart={(event) => startTransform(event, overlay, 'scale')}
-                        className="pointer-events-auto absolute -bottom-3 -right-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
-                        aria-label="요소 크기 조절"
-                      >
-                        <IconScaleWhite className="h-4 w-4" aria-hidden />
-                      </button>
-                    </>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        <OverlayCanvas
+          overlays={overlays}
+          selectedImageId={selectedImageId}
+          selectedTextId={selectedTextId}
+          editingOverlayId={editingOverlayId}
+          overlayElementRefs={overlayElementRefs}
+          imageScaleDefaultPercent={IMAGE_SCALE_DEFAULT_PERCENT}
+          handleOverlayMouseDown={handleOverlayMouseDown}
+          handleOverlayTouchStart={handleOverlayTouchStart}
+          handleTextOverlayTouchStart={handleTextOverlayTouchStart}
+          handleTextOverlayTouchMove={handleTextOverlayTouchMove}
+          handleTextOverlayTouchEnd={handleTextOverlayTouchEnd}
+          updateTextOverlay={updateTextOverlay}
+          startEditingTextOverlay={startEditingTextOverlay}
+          finishEditingTextOverlay={finishEditingTextOverlay}
+          onSelectImage={(overlayId) => {
+            setSelectedImageId(overlayId);
+            setSelectedTextId(null);
+          }}
+          onSelectText={(overlayId) => {
+            setSelectedImageId(null);
+            setSelectedTextId(overlayId);
+          }}
+          handleRemoveOverlayElement={handleRemoveOverlayElement}
+          startTransform={startTransform}
+          getTextDecorationValue={getTextDecorationValue}
+          getTextBoxStyles={getTextBoxStyles}
+        />
 
         <input
           type="file"
@@ -858,310 +743,51 @@ const editTemplatesRoute = createRoute({
           onChange={handleOverlayChange}
         />
 
-        {/* 오버레이 수정 모달 */}
-        {(selectedImageOverlay || (selectedTextOverlay && !editingOverlayId)) && (
-          <div
-            className="fixed left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] px-4 py-4 transition-[bottom] duration-200"
-            style={{
-              bottom: editingOverlayId ? `${keyboardInset + 16}px` : '0px',
-            }}
-            onMouseDown={(event) => event.stopPropagation()}
-            onTouchStart={(event) => event.stopPropagation()}
-          >
-            {/* 이미지 오버레이 수정 모달 */}
-            {selectedImageOverlay && (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-[#101010]">순서</p>
-                  <div className="flex gap-2">
-                    <button
-                      className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        moveDown(selectedImageOverlay.id);
-                      }}
-                      disabled={!canMoveImageDown}
-                    >
-                      뒤로
-                    </button>
-                    <button
-                      className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        moveUp(selectedImageOverlay.id);
-                      }}
-                      disabled={!canMoveImageUp}
-                    >
-                      앞으로
-                    </button>
-                  </div>
-                </div>
+        <OverlayEditModal
+          selectedImageOverlay={selectedImageOverlay}
+          selectedTextOverlay={selectedTextOverlay}
+          editingOverlayId={editingOverlayId}
+          isTextModalFloating={isTextModalFloating}
+          keyboardInset={keyboardInset}
+          linkInputValue={linkInputValue}
+          setLinkInputValue={setLinkInputValue}
+          handleLinkUrlConfirm={handleLinkUrlConfirm}
+          moveUp={moveUp}
+          moveDown={moveDown}
+          canMoveImageUp={canMoveImageUp}
+          canMoveImageDown={canMoveImageDown}
+          showTextColorPicker={showTextColorPicker}
+          setShowTextColorPicker={setShowTextColorPicker}
+          textColorValue={textColorValue}
+          handleTextColorChange={handleTextColorChange}
+          handleTextStyleChange={handleTextStyleChange}
+        />
 
-                <div className="flex flex-col gap-2 pt-2">
-                  <p className="text-sm font-semibold text-[#101010]">링크 추가</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={linkInputValue}
-                      onChange={(event) => setLinkInputValue(event.target.value)}
-                      onClick={(event) => event.stopPropagation()}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          handleLinkUrlConfirm();
-                        }
-                      }}
-                      placeholder="https://example.com"
-                      className="flex-1 rounded-lg border border-[#D9D9D9] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                    />
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleLinkUrlConfirm();
-                      }}
-                      className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold"
-                    >
-                      확인
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-[#A0A0A0]">링크가 있으면 공개 화면에서 클릭할 수 있어요.</p>
-                </div>
-              </div>
-            )}
+        <BackgroundOptionsModal
+          showBackgroundOptions={showBackgroundOptions}
+          showBackgroundToggle={showBackgroundToggle}
+          backgroundMode={backgroundMode}
+          setBackgroundMode={setBackgroundMode}
+          setShowBackgroundOptions={setShowBackgroundOptions}
+          setBackgroundOptionsSource={setBackgroundOptionsSource}
+          triggerBackgroundSelect={triggerBackgroundSelect}
+          setIsBackgroundColored={setIsBackgroundColored}
+          colorPickerValue={colorPickerValue}
+          handleSelectColor={handleSelectColor}
+        />
 
-            {/* 텍스트 오버레이 수정 모달 */}
-            {selectedTextOverlay && !editingOverlayId && (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-[#101010]">순서</p>
-                  <div className="flex gap-2">
-                    <button
-                      className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        moveDown(selectedTextOverlay.id);
-                      }}
-                      disabled={!canMoveTextDown}
-                    >
-                      뒤로
-                    </button>
-                    <button
-                      className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        moveUp(selectedTextOverlay.id);
-                      }}
-                      disabled={!canMoveTextUp}
-                    >
-                      앞으로
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs font-semibold text-[#101010]">폰트 스타일</p>
-                  <div className="flex gap-2">
-                    {TEXT_FONT_FAMILIES.map((family) => (
-                      <button
-                        key={family.value}
-                        className={`flex-1 px-3 py-2 rounded-lg border text-sm ${
-                          selectedTextOverlay.fontFamily === family.value
-                            ? 'bg-black text-white border-black'
-                            : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
-                        }`}
-                        onClick={() => handleTextStyleChange({ fontFamily: family.value })}
-                      >
-                        {family.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs font-semibold text-[#101010]">굵기</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {TEXT_FONT_WEIGHTS.map((weight) => (
-                      <button
-                        key={weight.value}
-                        className={`px-3 py-2 rounded-lg border text-xs ${
-                          selectedTextOverlay.fontWeight === weight.value
-                            ? 'bg-black text-white border-black'
-                            : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
-                        }`}
-                        onClick={() => handleTextStyleChange({ fontWeight: weight.value })}
-                      >
-                        {weight.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs font-semibold text-[#101010]">꾸미기</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      className={`px-3 py-2 rounded-lg border text-xs ${
-                        selectedTextOverlay.underline
-                          ? 'bg-black text-white border-black'
-                          : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
-                      }`}
-                      onClick={() => handleTextStyleChange({ underline: !selectedTextOverlay.underline })}
-                    >
-                      밑줄
-                    </button>
-                    <button
-                      className={`px-3 py-2 rounded-lg border text-xs ${
-                        selectedTextOverlay.strikethrough
-                          ? 'bg-black text-white border-black'
-                          : 'bg-[#F5F5F5] text-[#5E5E5E] border-transparent'
-                      }`}
-                      onClick={() => handleTextStyleChange({ strikethrough: !selectedTextOverlay.strikethrough })}
-                    >
-                      취소선
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 이미지 추가 모달 */}
-        {showBackgroundOptions && (
-          <div className="fixed left-0 right-0 bottom-0 z-50">
-            <div
-              className={`mb-0 bg-white backdrop-blur-sm shadow-[0_-1px_12px_rgba(0,0,0,0.2)] flex flex-col  rounded-t-lg ${showBackgroundToggle ? 'gap-2 rounded-b-lg' : 'gap-5'}`}
-              onMouseDown={(event) => event.stopPropagation()}
-              onTouchStart={(event) => event.stopPropagation()}
-            >
-              <div className={`grid grid-cols-[1fr_auto_1fr] items-center px-5 py-5 ${!showBackgroundToggle && 'border-b border-[#D3D3D3]'}`}>
-                <p className="col-start-2 text-base font-semibold text-[#222222] leading-none text-center">
-                  {!showBackgroundToggle ? '배경색 고르기' : '배경 수정'}
-                </p>
-                <button
-                  onClick={() => {
-                    setShowBackgroundOptions(false);
-                    setBackgroundOptionsSource(null);
-                  }}
-                  className="col-start-3 justify-self-end"
-                >
-                  <IconClose className="h-4 w-4 text-[#222222]" aria-hidden />
-                </button>
-              </div>
-              <div className="flex flex-col gap-4">
-              {showBackgroundToggle && (
-                <div className="flex items-center justify-between ">
-                  <div className="flex w-full">
-                    <button
-                      onClick={() => setBackgroundMode('image')}
-                      className={`w-full text-base pb-2 border-b ${
-                        backgroundMode === 'image' ? 'font-bold text-[#222222] border-[#222222] border-b-2 border-b-solid' : 'text-[#6B6B6B] border-[#D3D3D3]'
-                      }`}
-                    >
-                      이미지
-                    </button>
-                    <button
-                      onClick={() => setBackgroundMode('color')}
-                      className={`w-full text-base pb-2 border-b ${
-                        backgroundMode === 'color' ? 'font-bold text-[#222222] border-[#222222] border-b-2 border-b-solid' : 'text-[#6B6B6B] border-[#D3D3D3]'
-                      }`}
-                    >
-                      단색
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {showBackgroundToggle && backgroundMode === 'image' ? (
-                <div className="flex flex-col gap-2 px-5 mb-10">
-                  <div className="flex flex-col items-center justify-center mt-4">
-                    <div className="mx-auto flex items-center justify-center">
-                      <IconImage className="h-10 w-10 text-[#222222]" aria-hidden />
-                    </div>
-                    <div className='flex flex-col items-center justify-center gap-2 mt-3 mb-6'>
-                      <p className="text-sm font-medium text-[#222222] leading-none">원하는 이미지나 배경색을 선택해주세요.</p>
-                      <p className="text-xs font-regular text-[#7A7A7A] leading-none">50MB 이하의 JPEG, PNG, and MP4만 가능해요.</p>
-                    </div>
-                    </div>
-                  <button
-                    onClick={() => {
-                      triggerBackgroundSelect();
-                      setIsBackgroundColored(false);
-                      setShowBackgroundOptions(false);
-                      setBackgroundOptionsSource(null);
-                    }}
-                    className='w-full py-4 rounded-lg flex items-center justify-center text-[#222222] leading-none font-bold bg-[#B1FF8D]'
-                  >
-                    이미지 업로드
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-6 px-5 pb-10">
-                  <HexColorPicker color={colorPickerValue} onChange={handleSelectColor} style={{ width: '100%' }} />
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={() => {
-                        setShowBackgroundOptions(false);
-                        setBackgroundOptionsSource(null);
-                      }}
-                      className='w-full py-4 rounded-lg flex items-center justify-center text-[#222222] leading-none font-bold bg-[#B1FF8D]'
-                    >
-                      적용하기
-                    </button>
-                  </div>
-                </div>
-              )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 오버레이 추가 nav bar */}
-        {!isOverlayFocused && !showBackgroundOptions && !isEmptyState && (
-          <div className="fixed inset-x-0 bottom-10 z-50 grid place-items-center">
-            <div className="flex gap-2 w-fit px-4 rounded-xl bg-white shadow-lg">
-              <NavigationButton 
-                onClick={() => {
-                  setBackgroundOptionsSource('navbar');
-                  setBackgroundMode('image');
-                  setShowBackgroundOptions(true);
-                }}
-                aria-label="배경 이미지 추가"
-              >
-                <IconImage className="w-6 h-6 text-[#222222]" aria-hidden />
-                <span className="text-xs font-medium text-[#222222] leading-none">배경</span>
-              </NavigationButton>
-              <NavigationButton 
-                onClick={triggerOverlaySelect}
-                aria-label="스티커 추가"
-              >
-                <IconSticker className="w-6 h-6 text-[#222222]" aria-hidden />
-                <span className="text-xs font-medium text-[#222222] leading-none">스티커</span>
-              </NavigationButton>
-              {/* <NavigationButton 
-                onClick={triggerOverlaySelect}
-                aria-label="링크 추가"
-              >
-                <IconLink className="w-6 h-6 text-[#222222]" aria-hidden />
-                <span className="text-xs font-medium text-[#222222] leading-none">링크</span>
-              </NavigationButton>  */}
-              <NavigationButton 
-                onClick={() => addTextOverlay()}
-                aria-label="텍스트 추가"
-              >
-                <IconText className="w-6 h-6 text-[#222222]" aria-hidden />
-                <span className="text-xs font-medium text-[#222222] leading-none">텍스트</span>
-              </NavigationButton> 
-              <NavigationButton 
-                onClick={() => console.log('모션 추가')}
-                aria-label="모션 추가"
-              >
-                <IconMotion className="w-6 h-6 text-[#222222]" aria-hidden />
-                <span className="text-xs font-medium text-[#222222] leading-none">모션</span>
-              </NavigationButton> 
-            </div>
-          </div>
-        )}
+        <OverlayNavBar
+          isOverlayFocused={isOverlayFocused}
+          showBackgroundOptions={showBackgroundOptions}
+          isEmptyState={isEmptyState}
+          onOpenBackgroundOptions={() => {
+            setBackgroundOptionsSource('navbar');
+            setBackgroundMode('image');
+            setShowBackgroundOptions(true);
+          }}
+          onTriggerOverlaySelect={triggerOverlaySelect}
+          onAddTextOverlay={addTextOverlay}
+        />
         {/* next button */}
         {/* <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
           <button

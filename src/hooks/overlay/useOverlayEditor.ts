@@ -44,6 +44,8 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
       ...overlay,
       rotation: overlay.rotation ?? 0,
       scalePercent: Math.max(IMAGE_SCALE_PERCENT_MIN, overlay.scalePercent ?? 100),
+      textColor: overlay.textColor ?? '#222222',
+      boxStyle: overlay.boxStyle ?? 0,
     };
   }, []);
   const [overlays, setOverlays] = useState<Overlay[]>(() =>
@@ -80,6 +82,8 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
         fontSize: 18,
         fontWeight: 600,
         fontFamily: 'classic',
+        textColor: '#222222',
+        boxStyle: 0,
         rotation: 0,
         scalePercent: 100,
         underline: false,
@@ -107,7 +111,7 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
   const updateTextStyle = useCallback(
     (
       overlayId: string,
-      style: Partial<Pick<TextOverlay, 'fontFamily' | 'fontSize' | 'fontWeight' | 'underline' | 'strikethrough'>>
+      style: Partial<Pick<TextOverlay, 'fontFamily' | 'fontSize' | 'fontWeight' | 'underline' | 'strikethrough' | 'textColor' | 'boxStyle'>>
     ) => {
       setOverlays((prev) =>
         prev.map((overlay) =>

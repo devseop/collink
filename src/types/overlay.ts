@@ -23,6 +23,8 @@ export type TextOverlay = BaseOverlay & {
   fontFamily: string;
   rotation: number;
   scalePercent: number;
+  textColor?: string;
+  boxStyle?: 0 | 1 | 2;
   underline?: boolean;
   strikethrough?: boolean;
 };
