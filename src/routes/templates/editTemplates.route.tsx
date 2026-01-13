@@ -2,51 +2,22 @@ import { createRoute } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 import templatesRoute from './templates.route';
-import { useOverlayEditor, DEFAULT_IMAGE_SIZE, IMAGE_SCALE_PERCENT_MIN } from '../../hooks/overlay/useOverlayEditor';
-import type { DefaultTemplate } from '../../types/templates';
+import { useOverlayEditor, IMAGE_SCALE_PERCENT_MIN } from '../../hooks/overlay/useOverlayEditor';
 import type { Overlay } from '../../types/overlay';
 import { useAuth } from '../../hooks/useAuth';
 import router from '../router';
 import { useTemplateSelectionStore } from '../../stores/templateSelectionStore';
 import { useTemplateEditorStore, type TemplateEditorSnapshot } from '../../stores/templateEditorStore';
-import {
-  DEFAULT_TEXT_FONT_FAMILY,
-  DEFAULT_TEXT_FONT_SIZE,
-  DEFAULT_TEXT_FONT_WEIGHT,
-  FALLBACK_POSITION,
-  IMAGE_SCALE_DEFAULT_PERCENT,
-} from '../../constants/templates';
-import { safeRandomUUID } from '../../utils/random';
+import { IMAGE_SCALE_DEFAULT_PERCENT } from '../../constants/templates';
 import Header from '../../components/Header';
 import EmptyState from './components/EmptyState';
 import OverlayCanvas from './components/OverlayCanvas';
 import OverlayEditModal from './components/OverlayEditModal';
 import BackgroundOptionsModal from './components/BackgroundOptionsModal';
 import OverlayNavBar from './components/OverlayNavBar';
+import { useOverlaySelectionState } from '../../hooks/templates/useOverlaySelectionState';
+import { mapTemplateToEditorState } from '../../utils/editorOverlayMapper';
 
-
-const computeBaseDimensions = (width?: number, height?: number) => {
-  const safeWidth = width ?? DEFAULT_IMAGE_SIZE;
-  const safeHeight = height ?? DEFAULT_IMAGE_SIZE;
-  const maxDimension = Math.max(safeWidth, safeHeight);
-  if (maxDimension === 0) {
-    return {
-      baseWidth: DEFAULT_IMAGE_SIZE,
-      baseHeight: DEFAULT_IMAGE_SIZE,
-    };
-  }
-  const normalizationScale = DEFAULT_IMAGE_SIZE / maxDimension;
-  return {
-    baseWidth: safeWidth * normalizationScale,
-    baseHeight: safeHeight * normalizationScale,
-  };
-};
-
-const deriveScalePercentFromSize = (width: number, height: number) => {
-  const maxDimension = Math.max(width, height, 1);
-  const rawPercent = (maxDimension / DEFAULT_IMAGE_SIZE) * 100;
-  return Math.max(IMAGE_SCALE_PERCENT_MIN, Math.round(rawPercent));
-};
 
 const getTextDecorationValue = (underline?: boolean, strikethrough?: boolean) => {
   const parts = [];
@@ -103,79 +74,6 @@ const normalizeRotation = (value: number) => {
   return mod < 0 ? mod + 360 : mod;
 };
 
-type EditorInitialState = {
-  backgroundImageUrl: string | null;
-  backgroundColor: string | null;
-  isBackgroundColored: boolean;
-  overlays: Overlay[];
-};
-
-const mapTemplateToEditorState = (template: DefaultTemplate | null): EditorInitialState => {
-  if (!template) {
-    return {
-      backgroundImageUrl: null,
-      backgroundColor: null,
-      isBackgroundColored: false,
-      overlays: [],
-    };
-  }
-
-  const overlays: Overlay[] = [];
-    const items = template.items ?? [];
-
-    items.forEach((item) => {
-      const basePosition = {
-        x: item.coordinates?.x ?? FALLBACK_POSITION.x,
-        y: item.coordinates?.y ?? FALLBACK_POSITION.y,
-      };
-
-    if (item.imageUrl) {
-      const templateWidth = item.size?.width ?? DEFAULT_IMAGE_SIZE;
-      const templateHeight = item.size?.height ?? DEFAULT_IMAGE_SIZE;
-      const { baseWidth, baseHeight } = computeBaseDimensions(templateWidth, templateHeight);
-      const scalePercent = deriveScalePercentFromSize(templateWidth, templateHeight);
-      overlays.push({
-        id: safeRandomUUID(),
-        type: 'image',
-        image: item.imageUrl,
-        file: null,
-        ...basePosition,
-        rotation: item.rotation ?? 0,
-        baseWidth,
-        baseHeight,
-        scalePercent,
-        linkUrl: item.linkUrl ?? undefined,
-      });
-      return;
-    }
-
-    if (item.text || item.font) {
-      overlays.push({
-        id: safeRandomUUID(),
-        type: 'text',
-        text: item.text ?? '',
-        fontSize: item.font?.size ?? DEFAULT_TEXT_FONT_SIZE,
-        fontWeight: item.font?.weight ?? DEFAULT_TEXT_FONT_WEIGHT,
-        fontFamily: item.font?.family ?? DEFAULT_TEXT_FONT_FAMILY,
-        rotation: item.rotation ?? 0,
-        scalePercent: IMAGE_SCALE_DEFAULT_PERCENT,
-        textColor: item.font?.color ?? '#222222',
-        underline: item.font?.decoration?.includes('underline'),
-        strikethrough: item.font?.decoration?.includes('line-through'),
-        ...basePosition,
-      });
-    }
-  });
-
-  console.log('mapTemplateToEditorState', template);
-
-  return {
-    backgroundImageUrl: template.backgroundImageUrl ?? null,
-    backgroundColor: template.backgroundColor ?? null,
-    isBackgroundColored: Boolean(template.isBackgroundColored),
-    overlays,
-  };
-};
 
 const overlaysEqual = (a: Overlay[], b: Overlay[]) => {
   if (a.length !== b.length) return false;
@@ -203,6 +101,7 @@ const overlaysEqual = (a: Overlay[], b: Overlay[]) => {
         left.fontWeight !== right.fontWeight ||
         left.fontFamily !== right.fontFamily ||
         left.textColor !== right.textColor ||
+        left.boxStyle !== right.boxStyle ||
         left.rotation !== right.rotation ||
         left.scalePercent !== right.scalePercent ||
         left.underline !== right.underline ||
@@ -227,13 +126,7 @@ const editTemplatesRoute = createRoute({
     const initialSnapshotRef = useRef<TemplateEditorSnapshot | null>(null);
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
-    const [keyboardInset, setKeyboardInset] = useState(0);
-    const [showTextColorPicker, setShowTextColorPicker] = useState(false);
-    const [textColorValue, setTextColorValue] = useState('#222222');
-    const keyboardBaselineRef = useRef<number | null>(null);
     const [backgroundOptionsSource, setBackgroundOptionsSource] = useState<'empty' | 'navbar' | null>(null);
-    const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
-    const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
     const initialEditorState = useMemo(() => {
       const hasCommitted =
         committedSnapshot &&
@@ -302,7 +195,6 @@ const editTemplatesRoute = createRoute({
       initialIsBackgroundColored: initialEditorState.isBackgroundColored,
       initialOverlays: initialEditorState.overlays,
     });
-    const isOverlayFocused = Boolean(selectedImageId || selectedTextId || editingOverlayId);
     const isEmptyState = !previewImage && !isBackgroundColored && overlays.length === 0;
     const showBackgroundToggle = backgroundOptionsSource === 'navbar';
     const colorPickerValue = backgroundColor ?? '#FFFFFF';
@@ -341,25 +233,33 @@ const editTemplatesRoute = createRoute({
     const [saveError, setSaveError] = useState<string | null>(null);
     const [didSave, setDidSave] = useState(false);
 
-    const selectedImageOverlay = useMemo(
-      () =>
-        overlays.find(
-          (overlay): overlay is Overlay & { type: 'image' } =>
-            overlay.type === 'image' && overlay.id === selectedImageId
-        ) ?? null,
-      [overlays, selectedImageId]
-    );
-
-    const selectedTextOverlay = useMemo(
-      () =>
-        overlays.find(
-      (overlay): overlay is Overlay & { type: 'text' } =>
-        overlay.type === 'text' && overlay.id === selectedTextId
-    ) ?? null,
-      [overlays, selectedTextId]
-    );
-
-    const [linkInputValue, setLinkInputValue] = useState('');
+    const {
+      selectedImageId,
+      setSelectedImageId,
+      selectedTextId,
+      setSelectedTextId,
+      selectedImageOverlay,
+      selectedTextOverlay,
+      isOverlayFocused,
+      isTextModalFloating,
+      linkInputValue,
+      setLinkInputValue,
+      showTextColorPicker,
+      setShowTextColorPicker,
+      textColorValue,
+      setTextColorValue,
+      keyboardInset,
+      handleBackgroundPointerDown,
+      handleTextOverlayTouchStart,
+      handleTextOverlayTouchMove,
+      handleTextOverlayTouchEnd,
+    } = useOverlaySelectionState({
+      overlays,
+      editingOverlayId,
+      lastAddedImageOverlayId,
+      finishEditingTextOverlay,
+      startEditingTextOverlay,
+    });
 
     const selectedImageIndex = useMemo(
       () => (selectedImageOverlay ? overlays.findIndex((overlay) => overlay.id === selectedImageOverlay.id) : -1),
@@ -367,70 +267,6 @@ const editTemplatesRoute = createRoute({
     );
     const canMoveImageUp = selectedImageIndex >= 0 && selectedImageIndex < overlays.length - 1;
     const canMoveImageDown = selectedImageIndex > 0;
-
-    useEffect(() => {
-      if (!editingOverlayId) return;
-      const editingOverlay = overlays.find((overlay) => overlay.id === editingOverlayId);
-      if (editingOverlay?.type === 'text') {
-        setSelectedTextId(editingOverlay.id);
-        setSelectedImageId(null);
-      }
-    }, [editingOverlayId, overlays]);
-
-    useEffect(() => {
-      if (!editingOverlayId) {
-        setKeyboardInset(0);
-        keyboardBaselineRef.current = null;
-        return;
-      }
-      const updateInset = () => {
-        if (window.visualViewport) {
-          const visualViewport = window.visualViewport;
-          const inset = Math.max(
-            0,
-            window.innerHeight - visualViewport.height - visualViewport.offsetTop
-          );
-          setKeyboardInset(inset);
-          return;
-        }
-        if (keyboardBaselineRef.current === null) {
-          keyboardBaselineRef.current = window.innerHeight;
-        }
-        const inset = Math.max(0, (keyboardBaselineRef.current ?? window.innerHeight) - window.innerHeight);
-        setKeyboardInset(inset);
-      };
-
-      updateInset();
-      window.visualViewport?.addEventListener('resize', updateInset);
-      window.visualViewport?.addEventListener('scroll', updateInset);
-      window.addEventListener('resize', updateInset);
-      window.addEventListener('orientationchange', updateInset);
-
-      return () => {
-        window.visualViewport?.removeEventListener('resize', updateInset);
-        window.visualViewport?.removeEventListener('scroll', updateInset);
-        window.removeEventListener('resize', updateInset);
-        window.removeEventListener('orientationchange', updateInset);
-      };
-    }, [editingOverlayId]);
-
-    useEffect(() => {
-      if (!lastAddedImageOverlayId) return;
-      setSelectedImageId(lastAddedImageOverlayId);
-      setSelectedTextId(null);
-    }, [lastAddedImageOverlayId]);
-
-    useEffect(() => {
-      setLinkInputValue(selectedImageOverlay?.linkUrl ?? '');
-    }, [selectedImageOverlay]);
-
-    useEffect(() => {
-      if (!selectedTextOverlay) {
-        setShowTextColorPicker(false);
-        return;
-      }
-      setTextColorValue(selectedTextOverlay.textColor ?? '#222222');
-    }, [selectedTextOverlay]);
 
     const handleSaveTemplate = useCallback(async () => {
       if (!user) {
@@ -491,12 +327,6 @@ const editTemplatesRoute = createRoute({
 
     const canSave = Boolean(user) && overlays.length > 0 && !isSaving;
 
-    const handleBackgroundPointerDown = useCallback(() => {
-      finishEditingTextOverlay();
-      setSelectedImageId(null);
-      setSelectedTextId(null);
-    }, [finishEditingTextOverlay]);
-
     const handleRemoveOverlayElement = useCallback(
       (overlayId: string) => {
         removeOverlay(overlayId);
@@ -507,13 +337,6 @@ const editTemplatesRoute = createRoute({
     );
 
     const overlayElementRefs = useRef<Record<string, HTMLElement | null>>({});
-    const textTapRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
-    const textTouchRef = useRef<{ id: string | null; x: number; y: number; moved: boolean }>({
-      id: null,
-      x: 0,
-      y: 0,
-      moved: false,
-    });
     const transformRef = useRef<{
       mode: 'rotate' | 'scale';
       overlayId: string;
@@ -608,41 +431,6 @@ const editTemplatesRoute = createRoute({
 
     useEffect(() => stopTransform, [stopTransform]);
 
-    const handleTextOverlayTouchEnd = useCallback(
-      (event: ReactTouchEvent, overlayId: string) => {
-        const now = Date.now();
-        if (textTouchRef.current.id === overlayId && textTouchRef.current.moved) {
-          textTouchRef.current = { id: null, x: 0, y: 0, moved: false };
-          return;
-        }
-        const last = textTapRef.current;
-        const isDoubleTap = last.id === overlayId && now - last.time < 280;
-        textTapRef.current = { id: overlayId, time: now };
-        if (!isDoubleTap) return;
-        event.preventDefault();
-        event.stopPropagation();
-        startEditingTextOverlay(overlayId);
-        setSelectedTextId(overlayId);
-      },
-      [startEditingTextOverlay]
-    );
-
-    const handleTextOverlayTouchStart = useCallback((event: ReactTouchEvent, overlayId: string) => {
-      const touch = event.touches[0];
-      if (!touch) return;
-      textTouchRef.current = { id: overlayId, x: touch.clientX, y: touch.clientY, moved: false };
-    }, []);
-
-    const handleTextOverlayTouchMove = useCallback((event: ReactTouchEvent, overlayId: string) => {
-      if (textTouchRef.current.id !== overlayId) return;
-      const touch = event.touches[0];
-      if (!touch) return;
-      const deltaX = touch.clientX - textTouchRef.current.x;
-      const deltaY = touch.clientY - textTouchRef.current.y;
-      if (Math.hypot(deltaX, deltaY) > 6) {
-        textTouchRef.current.moved = true;
-      }
-    }, []);
 
     const handleLinkUrlConfirm = useCallback(() => {
       if (!selectedImageOverlay) return;
@@ -657,8 +445,6 @@ const editTemplatesRoute = createRoute({
       },
       [selectedTextId, updateTextStyle]
     );
-
-    const isTextModalFloating = Boolean(selectedTextOverlay && !editingOverlayId);
 
     const handleTextColorChange = useCallback(
       (color: string) => {

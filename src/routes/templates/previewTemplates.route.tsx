@@ -9,6 +9,7 @@ import { createCustomTemplate } from '../../api/templateAPI';
 import type { TemplateItem } from '../../types/templates';
 import type { Overlay } from '../../types/overlay';
 import { safeRandomUUID } from '../../utils/random';
+import { mapOverlayToTemplateItem } from '../../utils/editorOverlayMapper';
 
 type AnimationType = 'default' | 'spread' | 'collage';
 
@@ -185,11 +186,6 @@ const previewTemplatesRoute = createRoute({
 
         const items: TemplateItem[] = await Promise.all(
           committed.overlays.map(async (overlay, index) => {
-            const base = {
-              index,
-              coordinates: { x: overlay.x, y: overlay.y },
-            };
-
             if (overlay.type === 'image') {
               const imageUrl =
                 overlay.file && user
@@ -200,31 +196,9 @@ const previewTemplatesRoute = createRoute({
                     })
                   : overlay.image;
               const linkUrl = normalizeLinkUrl(overlay.linkUrl);
-
-              return {
-                ...base,
-                imageUrl,
-                linkUrl,
-                hasLink: Boolean(linkUrl),
-                rotation: overlay.rotation ?? 0,
-                size: {
-                  width: (overlay.baseWidth * overlay.scalePercent) / 100,
-                  height: (overlay.baseHeight * overlay.scalePercent) / 100,
-                },
-              };
+              return mapOverlayToTemplateItem(overlay, index, { imageUrl, linkUrl });
             }
-
-            return {
-              ...base,
-              text: overlay.text,
-              font: {
-                size: overlay.fontSize,
-                weight: overlay.fontWeight,
-                color: overlay.textColor ?? '#000000',
-                family: overlay.fontFamily ?? 'classic',
-                decoration: getTextDecorationValue(overlay.underline, overlay.strikethrough) as 'underline' | 'line-through' | 'none' | 'underline line-through' | undefined,
-              },
-            };
+            return mapOverlayToTemplateItem(overlay, index);
           })
         );
 
