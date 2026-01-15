@@ -10,14 +10,17 @@ import { useTemplateSelectionStore } from '../../stores/templateSelectionStore';
 import { useTemplateEditorStore, type TemplateEditorSnapshot } from '../../stores/templateEditorStore';
 import { IMAGE_SCALE_DEFAULT_PERCENT } from '../../constants/templates';
 import Header from '../../components/Header';
+import { uploadTemplateAsset } from '../../api/storageAPI';
+import { createCustomTemplate } from '../../api/templateAPI';
 import EmptyState from './components/EmptyState';
 import OverlayCanvas from './components/OverlayCanvas';
 import OverlayEditModal from './components/OverlayEditModal';
 import BackgroundOptionsModal from './components/BackgroundOptionsModal';
 import OverlayNavBar from './components/OverlayNavBar';
 import { useOverlaySelectionState } from '../../hooks/templates/useOverlaySelectionState';
-import { mapTemplateToEditorState } from '../../utils/editorOverlayMapper';
+import { mapOverlayToTemplateItem, mapTemplateToEditorState } from '../../utils/editorOverlayMapper';
 import AnimationSelector from './components/AnimationSelector';
+import { safeRandomUUID } from '../../utils/random';
 
 
 const getTextDecorationValue = (underline?: boolean, strikethrough?: boolean) => {
@@ -68,6 +71,16 @@ const getEventPoint = (event: MouseEvent | TouchEvent | ReactMouseEvent | ReactT
     return { x: touch?.clientX ?? 0, y: touch?.clientY ?? 0 };
   }
   return { x: event.clientX, y: event.clientY };
+};
+
+const normalizeLinkUrl = (value?: string | null) => {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
 };
 
 const normalizeRotation = (value: number) => {
@@ -123,6 +136,7 @@ const editTemplatesRoute = createRoute({
     const selectedTemplate = useTemplateSelectionStore((state) => state.selectedTemplate);
     const replaceDraft = useTemplateEditorStore((state) => state.replaceDraft);
     const commitDraft = useTemplateEditorStore((state) => state.commitDraft);
+    const resetAll = useTemplateEditorStore((state) => state.resetAll);
     const draftSnapshot = useTemplateEditorStore((state) => state.draft);
     const committedSnapshot = useTemplateEditorStore((state) => state.committed);
     const initialSnapshotRef = useRef<TemplateEditorSnapshot | null>(null);
@@ -345,8 +359,48 @@ const editTemplatesRoute = createRoute({
         replaceDraft(snapshot, selectedTemplate?.id ?? null);
         commitDraft(selectedTemplate?.id ?? null);
 
+        const backgroundImageUrl = backgroundFile
+          ? await uploadTemplateAsset({
+              file: backgroundFile,
+              userId: user.id,
+              folder: 'backgrounds',
+            })
+          : previewImage ?? undefined;
+        const shouldUseColor = Boolean(isBackgroundColored && backgroundColor && !backgroundImageUrl);
+
+        const items = await Promise.all(
+          overlays.map(async (overlay, index) => {
+            if (overlay.type === 'image') {
+              const imageUrl =
+                overlay.file && user
+                  ? await uploadTemplateAsset({
+                      file: overlay.file,
+                      userId: user.id,
+                      folder: 'overlays',
+                    })
+                  : overlay.image;
+              const linkUrl = normalizeLinkUrl(overlay.linkUrl);
+              return mapOverlayToTemplateItem(overlay, index, { imageUrl, linkUrl });
+            }
+            return mapOverlayToTemplateItem(overlay, index);
+          })
+        );
+
+        const customTemplateId = safeRandomUUID();
+        await createCustomTemplate({
+          customTemplateId,
+          userId: user.id,
+          backgroundImageUrl,
+          backgroundColor: shouldUseColor ? backgroundColor ?? undefined : undefined,
+          isBackgroundColored: shouldUseColor,
+          items,
+          isPublished: true,
+          animationType,
+        });
+
         setDidSave(true);
-        router.navigate({ to: '/templates/preview' });
+        resetAll();
+        router.navigate({ to: '/templates/completed' });
       } catch (error) {
         setDidSave(false);
         setSaveError(error instanceof Error ? error.message : '템플릿 저장에 실패했습니다.');
@@ -363,6 +417,7 @@ const editTemplatesRoute = createRoute({
       animationType,
       replaceDraft,
       commitDraft,
+      resetAll,
       selectedTemplate?.id,
     ]);
 
@@ -642,17 +697,16 @@ const editTemplatesRoute = createRoute({
             onOpenMotionOptions={() => setShowMotionOptions(true)}
           />
         )}
-        {/* next button */}
-        {/* <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+        <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
           <button
             onClick={handleSaveTemplate}
-            disabled={!canSave || Boolean(editingOverlayId)}
+            disabled={Boolean(editingOverlayId)}
             className="px-3 py-3 bg-[#B1FF8D] text-white font-semibold rounded-full shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             aria-label="다음"
           >
             <p>다음</p>
           </button>
-        </div> */}
+        </div>
       </div>
     );
   },

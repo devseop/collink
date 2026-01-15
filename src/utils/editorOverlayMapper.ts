@@ -126,6 +126,8 @@ export const mapOverlayToTemplateItem = (
   return {
     ...base,
     text: overlay.text,
+    scalePercent: overlay.scalePercent,
+    rotation: overlay.rotation ?? 0,
     font: {
       size: overlay.fontSize,
       weight: overlay.fontWeight,

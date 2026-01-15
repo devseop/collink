@@ -126,7 +126,7 @@ export async function createCustomTemplate(payload: CustomTemplatePayload) {
       image_url: item.imageUrl ?? null,
       width: item.size?.width ?? null,
       height: item.size?.height ?? null,
-      scale_percent: null,
+      scale_percent: item.scalePercent ?? null,
       text_content: item.text ?? null,
       font_size: item.font?.size ?? null,
       font_weight: item.font?.weight ?? null,
@@ -208,6 +208,7 @@ export async function getLatestPublishedCustomTemplateByUser(
             height: item.height,
           }
         : undefined,
+    scalePercent: item.scale_percent ?? undefined,
     font: item.type === 'text'
       ? {
           size: item.font_size ?? 18,

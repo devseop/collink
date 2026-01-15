@@ -26,6 +26,7 @@ export type TemplateItem = {
   index?: number;
   coordinates?: TemplateItemCoordinate;
   size?: TemplateItemSize;
+  scalePercent?: number;
   font?: TemplateItemFont;
   rotation?: number;
 };
