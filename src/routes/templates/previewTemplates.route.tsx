@@ -77,8 +77,6 @@ const previewTemplatesRoute = createRoute({
       }
     }, [committed, didSave]);
 
-    const overlayImageCount = committed?.overlays.filter((overlay) => overlay.type === 'image').length ?? 0;
-
     const canSave = useMemo(() => Boolean(user) && Boolean(committed) && (committed?.overlays?.length ?? 0) > 0 && !isSaving, [
       user,
       committed,
@@ -322,6 +320,7 @@ const previewTemplatesRoute = createRoute({
             </div>
           </div>
         </div>
+
       </div>
     );
   },

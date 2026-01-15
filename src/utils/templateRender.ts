@@ -25,6 +25,7 @@ type MappedTextItem = {
     top: number;
     rotation: number;
     zIndex: number;
+    scalePercent?: number;
   };
 };
 
@@ -67,6 +68,7 @@ export function mapTemplateItemsToRender(items: TemplateItem[]): MappedTemplateI
         top,
         rotation,
         zIndex,
+        scalePercent: item.scalePercent,
       },
     };
   });
