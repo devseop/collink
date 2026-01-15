@@ -17,6 +17,7 @@ import BackgroundOptionsModal from './components/BackgroundOptionsModal';
 import OverlayNavBar from './components/OverlayNavBar';
 import { useOverlaySelectionState } from '../../hooks/templates/useOverlaySelectionState';
 import { mapTemplateToEditorState } from '../../utils/editorOverlayMapper';
+import AnimationSelector from './components/AnimationSelector';
 
 
 const getTextDecorationValue = (underline?: boolean, strikethrough?: boolean) => {
@@ -74,6 +75,7 @@ const normalizeRotation = (value: number) => {
   return mod < 0 ? mod + 360 : mod;
 };
 
+type AnimationType = 'default' | 'spread' | 'collage';
 
 const overlaysEqual = (a: Overlay[], b: Overlay[]) => {
   if (a.length !== b.length) return false;
@@ -127,6 +129,16 @@ const editTemplatesRoute = createRoute({
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
     const [backgroundOptionsSource, setBackgroundOptionsSource] = useState<'empty' | 'navbar' | null>(null);
+    const initialAnimationType = useMemo<AnimationType>(
+      () => (committedSnapshot?.animationType as AnimationType | undefined) ?? (draftSnapshot?.animationType as AnimationType | undefined) ?? 'default',
+      [committedSnapshot, draftSnapshot]
+    );
+    const [animationType, setAnimationType] = useState<AnimationType>(initialAnimationType);
+    const [animationPreviewType, setAnimationPreviewType] = useState<AnimationType>(initialAnimationType);
+    const [isAnimationPreviewActive, setIsAnimationPreviewActive] = useState(false);
+    const [isAnimationPreviewing, setIsAnimationPreviewing] = useState(false);
+    const [viewportCenter, setViewportCenter] = useState({ x: 0, y: 0 });
+    const [showMotionOptions, setShowMotionOptions] = useState(false);
     const initialEditorState = useMemo(() => {
       const hasCommitted =
         committedSnapshot &&
@@ -207,8 +219,9 @@ const editTemplatesRoute = createRoute({
         backgroundColor,
         isBackgroundColored,
         overlays: overlays.map((overlay) => ({ ...overlay })),
+        animationType,
       };
-    }, [backgroundColor, backgroundFile, isBackgroundColored, overlays, previewImage]);
+    }, [backgroundColor, backgroundFile, isBackgroundColored, overlays, previewImage, animationType]);
 
     const hasChanges = useMemo(() => {
       const initial = initialSnapshotRef.current;
@@ -219,6 +232,7 @@ const editTemplatesRoute = createRoute({
         backgroundColor,
         isBackgroundColored,
         overlays,
+        animationType,
       };
       const backgroundDiff =
         initial.backgroundImageUrl !== current.backgroundImageUrl ||
@@ -226,12 +240,46 @@ const editTemplatesRoute = createRoute({
         initial.backgroundColor !== current.backgroundColor ||
         initial.isBackgroundColored !== current.isBackgroundColored;
       const overlayDiff = !overlaysEqual(initial.overlays, current.overlays);
-      return backgroundDiff || overlayDiff;
-    }, [backgroundColor, backgroundFile, isBackgroundColored, overlays, previewImage]);
+      const animationDiff = initial.animationType !== current.animationType;
+      return backgroundDiff || overlayDiff || animationDiff;
+    }, [backgroundColor, backgroundFile, isBackgroundColored, overlays, previewImage, animationType]);
 
-    const [isSaving, setIsSaving] = useState(false);
-    const [saveError, setSaveError] = useState<string | null>(null);
-    const [didSave, setDidSave] = useState(false);
+    useEffect(() => {
+      setAnimationType(initialAnimationType);
+    }, [initialAnimationType]);
+
+    useEffect(() => {
+      setAnimationPreviewType(animationType);
+    }, [animationType]);
+
+    useEffect(() => {
+      const updateCenter = () => {
+        if (typeof window === 'undefined') return;
+        setViewportCenter({
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 2,
+        });
+      };
+      updateCenter();
+      window.addEventListener('resize', updateCenter);
+      return () => window.removeEventListener('resize', updateCenter);
+    }, []);
+
+    const triggerAnimationPreview = useCallback((nextType?: AnimationType) => {
+      if (nextType) {
+        setAnimationPreviewType(nextType);
+      }
+      setIsAnimationPreviewing(true);
+      setIsAnimationPreviewActive(false);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setIsAnimationPreviewActive(true));
+      });
+      window.setTimeout(() => setIsAnimationPreviewing(false), 900);
+    }, []);
+
+    const [, setIsSaving] = useState(false);
+    const [, setSaveError] = useState<string | null>(null);
+    const [, setDidSave] = useState(false);
 
     const {
       selectedImageId,
@@ -291,6 +339,7 @@ const editTemplatesRoute = createRoute({
           backgroundColor,
           isBackgroundColored,
           overlays: overlays.map((overlay) => ({ ...overlay })),
+          animationType,
         };
 
         replaceDraft(snapshot, selectedTemplate?.id ?? null);
@@ -311,6 +360,7 @@ const editTemplatesRoute = createRoute({
       backgroundFile,
       isBackgroundColored,
       backgroundColor,
+      animationType,
       replaceDraft,
       commitDraft,
       selectedTemplate?.id,
@@ -324,8 +374,6 @@ const editTemplatesRoute = createRoute({
       },
       [resetBackgroundImage, setBackgroundColor, setIsBackgroundColored]
     );
-
-    const canSave = Boolean(user) && overlays.length > 0 && !isSaving;
 
     const handleRemoveOverlayElement = useCallback(
       (overlayId: string) => {
@@ -492,6 +540,10 @@ const editTemplatesRoute = createRoute({
           editingOverlayId={editingOverlayId}
           overlayElementRefs={overlayElementRefs}
           imageScaleDefaultPercent={IMAGE_SCALE_DEFAULT_PERCENT}
+          animationPreviewType={animationPreviewType}
+          isAnimationPreviewActive={isAnimationPreviewActive}
+          isAnimationPreviewing={isAnimationPreviewing}
+          viewportCenter={viewportCenter}
           handleOverlayMouseDown={handleOverlayMouseDown}
           handleOverlayTouchStart={handleOverlayTouchStart}
           handleTextOverlayTouchStart={handleTextOverlayTouchStart}
@@ -562,18 +614,34 @@ const editTemplatesRoute = createRoute({
           handleSelectColor={handleSelectColor}
         />
 
-        <OverlayNavBar
-          isOverlayFocused={isOverlayFocused}
-          showBackgroundOptions={showBackgroundOptions}
-          isEmptyState={isEmptyState}
-          onOpenBackgroundOptions={() => {
-            setBackgroundOptionsSource('navbar');
-            setBackgroundMode('image');
-            setShowBackgroundOptions(true);
-          }}
-          onTriggerOverlaySelect={triggerOverlaySelect}
-          onAddTextOverlay={addTextOverlay}
-        />
+        {showMotionOptions && (
+          <AnimationSelector
+            animationType={animationType}
+            onSelect={(value) => {
+              setAnimationType(value);
+              setAnimationPreviewType(value);
+            }}
+            onPreview={(value) => triggerAnimationPreview(value)}
+            onApply={() => setShowMotionOptions(false)}
+            onClose={() => setShowMotionOptions(false)}
+          />
+        )}
+        
+        {!showMotionOptions && (
+          <OverlayNavBar
+            isOverlayFocused={isOverlayFocused}
+            showBackgroundOptions={showBackgroundOptions}
+            isEmptyState={isEmptyState}
+            onOpenBackgroundOptions={() => {
+              setBackgroundOptionsSource('navbar');
+              setBackgroundMode('image');
+              setShowBackgroundOptions(true);
+            }}
+            onTriggerOverlaySelect={triggerOverlaySelect}
+            onAddTextOverlay={addTextOverlay}
+            onOpenMotionOptions={() => setShowMotionOptions(true)}
+          />
+        )}
         {/* next button */}
         {/* <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
           <button
@@ -582,13 +650,8 @@ const editTemplatesRoute = createRoute({
             className="px-3 py-3 bg-[#B1FF8D] text-white font-semibold rounded-full shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             aria-label="다음"
           >
-            <IconArrowRight className="w-5 h-5" aria-hidden />
+            <p>다음</p>
           </button>
-          {!user && <p className="text-xs text-red-500">로그인이 필요합니다.</p>}
-          {saveError && <p className="text-xs text-red-500">{saveError}</p>}
-          {didSave && !saveError && (
-            <p className="text-xs text-emerald-600">저장되었습니다. 선택 화면으로 이동합니다.</p>
-          )}
         </div> */}
       </div>
     );

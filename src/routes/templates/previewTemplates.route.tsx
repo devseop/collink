@@ -299,28 +299,7 @@ const previewTemplatesRoute = createRoute({
 
         <div className="fixed left-0 right-0 bottom-0 z-50">
           <div className="bg-white/95 backdrop-blur-sm shadow-[0_-8px_24px_rgba(0,0,0,0.08)] border border-black/5 px-4 py-4 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
-            <span className="text-sm font-semibold text-[#4B4B4B]">애니메이션</span>
-            <div className="flex items-center gap-2 bg-[#F9F9F9] rounded-xl py-1 mb-2">
-              {[
-                { value: 'default', label: '기본' },
-                { value: 'spread', label: '퍼짐' },
-                { value: 'collage', label: '콜라주' },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => triggerAnimation(option.value as AnimationType)}
-                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    animationType === option.value
-                      ? 'bg-black text-white'
-                      : 'bg-white text-[#4B4B4B] hover:bg-[#E5E5E5]'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-          {/* bottom UI */}
+            {/* bottom UI */}
             <div className="flex flex-col text-xs text-[#4B4B4B]">
               {saveError && <span className="text-red-500">{saveError}</span>}
               {didSave && !saveError && <span className="text-emerald-600">저장되었습니다.</span>}

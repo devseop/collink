@@ -1,4 +1,4 @@
-import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 import type { Overlay } from '../../../types/overlay';
 import IconCloseWhite from '../../../assets/icons/ic_close_white.svg?react';
 import IconRotateWhite from '../../../assets/icons/ic_rotate_white.svg?react';
@@ -16,6 +16,10 @@ type OverlayCanvasProps = {
   editingOverlayId: string | null;
   overlayElementRefs: React.MutableRefObject<Record<string, HTMLElement | null>>;
   imageScaleDefaultPercent: number;
+  animationPreviewType?: 'default' | 'spread' | 'collage';
+  isAnimationPreviewActive?: boolean;
+  isAnimationPreviewing?: boolean;
+  viewportCenter?: { x: number; y: number };
   handleOverlayMouseDown: (event: ReactMouseEvent<HTMLDivElement>, overlayId: string) => void;
   handleOverlayTouchStart: (event: ReactTouchEvent<HTMLDivElement>, overlayId: string) => void;
   handleTextOverlayTouchStart: (event: ReactTouchEvent, overlayId: string) => void;
@@ -39,6 +43,10 @@ export default function OverlayCanvas({
   editingOverlayId,
   overlayElementRefs,
   imageScaleDefaultPercent,
+  animationPreviewType = 'default',
+  isAnimationPreviewActive = false,
+  isAnimationPreviewing = false,
+  viewportCenter = { x: 0, y: 0 },
   handleOverlayMouseDown,
   handleOverlayTouchStart,
   handleTextOverlayTouchStart,
@@ -60,19 +68,43 @@ export default function OverlayCanvas({
         const isText = overlay.type === 'text';
         const isEditing = isText && editingOverlayId === overlay.id;
         const isSelected = selectedImageId === overlay.id || selectedTextId === overlay.id;
+        const shouldPreview = isAnimationPreviewing && animationPreviewType !== 'default';
         const textBoxStyles = isText
           ? getTextBoxStyles(overlay.textColor ?? '#222222', overlay.boxStyle ?? 0)
           : null;
+        const positionStyle: CSSProperties = {
+          left: `${overlay.x}px`,
+          top: `${overlay.y}px`,
+          opacity: 1,
+          transform: 'scale(1)',
+        };
+
+        if (shouldPreview && animationPreviewType === 'spread') {
+          if (!isAnimationPreviewActive) {
+            positionStyle.left = `${viewportCenter.x}px`;
+            positionStyle.top = `${viewportCenter.y}px`;
+            positionStyle.opacity = 0;
+            positionStyle.transform = 'scale(0.9)';
+          } else {
+            positionStyle.transition = 'left 700ms ease, top 700ms ease, opacity 700ms ease, transform 700ms ease';
+          }
+        }
+
+        if (shouldPreview && animationPreviewType === 'collage') {
+          const delayMs = index * 160;
+          if (!isAnimationPreviewActive) {
+            positionStyle.opacity = 0;
+            positionStyle.transform = 'scale(0.95)';
+          } else {
+            positionStyle.transition = `opacity 500ms ease ${delayMs}ms, transform 500ms ease ${delayMs}ms`;
+          }
+        }
 
         return (
           <div
             key={overlay.id}
             className={`fixed z-20 touch-none ${isSelected ? 'p-2' : ''}`}
-            style={{
-              left: `${overlay.x}px`,
-              top: `${overlay.y}px`,
-              touchAction: 'none',
-            }}
+            style={{ ...positionStyle, touchAction: 'none' }}
             onMouseDown={!isEditing ? (event) => handleOverlayMouseDown(event, overlay.id) : undefined}
             onTouchStart={!isEditing ? (event) => handleOverlayTouchStart(event, overlay.id) : undefined}
             onClick={(event) => {

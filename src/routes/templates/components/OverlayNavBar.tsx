@@ -11,6 +11,7 @@ type OverlayNavBarProps = {
   onOpenBackgroundOptions: () => void;
   onTriggerOverlaySelect: () => void;
   onAddTextOverlay: () => void;
+  onOpenMotionOptions: () => void;
 };
 
 export default function OverlayNavBar({
@@ -20,6 +21,7 @@ export default function OverlayNavBar({
   onOpenBackgroundOptions,
   onTriggerOverlaySelect,
   onAddTextOverlay,
+  onOpenMotionOptions,
 }: OverlayNavBarProps) {
   if (isOverlayFocused || showBackgroundOptions || isEmptyState) return null;
 
@@ -38,7 +40,7 @@ export default function OverlayNavBar({
           <IconText className="w-6 h-6 text-[#222222]" aria-hidden />
           <span className="text-xs font-medium text-[#222222] leading-none">텍스트</span>
         </NavigationButton>
-        <NavigationButton onClick={() => console.log('모션 추가')} aria-label="모션 추가">
+        <NavigationButton onClick={onOpenMotionOptions} aria-label="모션 추가">
           <IconMotion className="w-6 h-6 text-[#222222]" aria-hidden />
           <span className="text-xs font-medium text-[#222222] leading-none">모션</span>
         </NavigationButton>

@@ -38,8 +38,8 @@ export default function BackgroundOptionsModal({
         onMouseDown={(event) => event.stopPropagation()}
         onTouchStart={(event) => event.stopPropagation()}
       >
-        <div className={`grid grid-cols-[1fr_auto_1fr] items-center px-5 py-5 ${!showBackgroundToggle && 'border-b border-[#D3D3D3]'}`}>
-          <p className="col-start-2 text-base font-semibold text-[#222222] leading-none text-center">
+        <div className={`flex items-center justify-between px-5 py-5 ${!showBackgroundToggle && 'border-b border-[#D3D3D3]'}`}>
+          <p className="text-lg font-semibold text-[#222222] leading-none text-left">
             {!showBackgroundToggle ? '배경색 고르기' : '배경 수정'}
           </p>
           <button
@@ -47,7 +47,6 @@ export default function BackgroundOptionsModal({
               setShowBackgroundOptions(false);
               setBackgroundOptionsSource(null);
             }}
-            className="col-start-3 justify-self-end"
           >
             <IconClose className="h-4 w-4 text-[#222222]" aria-hidden />
           </button>
