@@ -188,7 +188,7 @@ const editTemplatesRoute = createRoute({
       previewImage,
       backgroundFile,
       overlays,
-      maxOverlays,
+      // maxOverlays,
       backgroundInputRef,
       overlayInputRef,
       handleBackgroundChange,

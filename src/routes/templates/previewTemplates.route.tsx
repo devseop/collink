@@ -96,20 +96,6 @@ const previewTemplatesRoute = createRoute({
       return () => window.removeEventListener('resize', updateCenter);
     }, []);
 
-    const triggerAnimation = useCallback(
-      (nextType?: AnimationType) => {
-        if (nextType) {
-          setAnimationType(nextType);
-        }
-        setIsAnimationActive(false);
-        // allow initial state to render, then activate transition
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => setIsAnimationActive(true));
-        });
-      },
-      []
-    );
-
     const computePositionStyle = useCallback(
       (overlay: Overlay, index: number) => {
         const rotation = overlay.type === 'image' ? overlay.rotation ?? 0 : 0;
