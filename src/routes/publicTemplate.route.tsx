@@ -1,11 +1,12 @@
-import { createRoute } from '@tanstack/react-router';
+import { createRoute, useNavigate } from '@tanstack/react-router';
 import rootRoute from './root';
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { getProfileByUsername } from '../api/profileAPI';
-import { getLatestPublishedCustomTemplateByUser } from '../api/templateAPI';
-import type { PublicTemplate } from '../api/templateAPI';
 import { mapTemplateItemsToRender, type MappedTemplateItem } from '../utils/templateRender';
 import { DEFAULT_TEXT_FONT_FAMILY, DEFAULT_TEXT_FONT_SIZE, DEFAULT_TEXT_FONT_WEIGHT } from '../constants/templates';
+import { useGetPublishedTemplateByUser } from '../hooks/templates/useGetPublishedTemplateByUser';
+import { useGetProfileByUsername } from '../hooks/users/useGetProfile';
+import IconHome from '../assets/icons/ic_home.svg?react';
+import IconList from '../assets/icons/ic_list.svg?react';
 
 type AnimationType = 'default' | 'spread' | 'collage';
 
@@ -42,48 +43,14 @@ const publicTemplateRoute = createRoute({
   path: '$username',
   getParentRoute: () => rootRoute,
   component: function PublicTemplatePage() {
+    const navigate = useNavigate();
     const { username } = publicTemplateRoute.useParams();
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [template, setTemplate] = useState<PublicTemplate | null>(null);
+    const profile = useGetProfileByUsername(username);
+    const { data: template, isLoading, error } = useGetPublishedTemplateByUser(profile?.data?.id ?? '');
     const [animationType, setAnimationType] = useState<AnimationType>('default');
     const [isAnimationActive, setIsAnimationActive] = useState(false);
     const [viewportCenter, setViewportCenter] = useState({ x: 0, y: 0 });
-    const [showLinkBadges, setShowLinkBadges] = useState(false);
     const [showLinkList, setShowLinkList] = useState(false);
-
-    useEffect(() => {
-      const fetchTemplate = async () => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-          const profile = await getProfileByUsername(username);
-          if (!profile) {
-            setTemplate(null);
-            setError('존재하지 않는 사용자입니다.');
-            setIsLoading(false);
-            return;
-          }
-
-          const latestTemplate = await getLatestPublishedCustomTemplateByUser(profile.id);
-          if (!latestTemplate) {
-            setTemplate(null);
-            setError('아직 공개된 템플릿이 없어요.');
-            setIsLoading(false);
-            return;
-          }
-
-          setTemplate(latestTemplate);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : '템플릿을 불러오지 못했습니다.');
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      fetchTemplate();
-    }, [username]);
 
     useEffect(() => {
       const updateCenter = () => {
@@ -164,24 +131,34 @@ const publicTemplateRoute = createRoute({
       [renderedItems]
     );
 
+    // todo: loading gif 추가 필요
+    if (isLoading) {
+      return (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <p className="text-[#757575] text-sm">템플릿을 불러오는 중입니다</p>
+        </div>
+      )
+    }
+
+    if (error?.message) {
+      return (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <p className="text-[#757575] text-sm">{error.message}</p>
+        </div>
+      )
+    }
+
     return (
       <div className="relative min-h-screen w-full overflow-hidden bg-[#000]">
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-[#757575] text-sm">템플릿을 불러오는 중...</p>
-          </div>
-        )}
-
-        {!isLoading && error && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center bg-white/80 px-4 py-3 rounded-xl shadow">
-              <p className="text-lg font-semibold text-[#101010] mb-2">Oops!</p>
-              <p className="text-sm text-[#757575]">{error}</p>
-            </div>
-          </div>
-        )}
-
-        {!isLoading && template && (
+        <div className="fixed p-5 z-50 w-full flex justify-between">
+          <button onClick={() => navigate({ to: '/' })} className='w-10 h-10 bg-white/70 rounded-full flex items-center justify-center'>
+            <IconHome className="w-[22px] h-[22px] text-black" />
+          </button>
+          <button onClick={() => setShowLinkList((prev) => !prev)} className='w-10 h-10 bg-white/70 rounded-full flex items-center justify-center'>
+            <IconList className="w-[22px] h-[22px] text-black" />
+          </button>
+        </div>
+        {template && (
           <>
             {template.isBackgroundColored && template.backgroundColor ? (
               <div className="absolute inset-0" style={{ backgroundColor: template.backgroundColor }} />
@@ -219,7 +196,7 @@ const publicTemplateRoute = createRoute({
                           }}
                           draggable={false}
                         />
-                        {showLinkBadges && item.linkUrl && <LinkBadge />}
+                        {item.linkUrl && <LinkBadge />}
                       </div>
                     );
 
@@ -269,28 +246,9 @@ const publicTemplateRoute = createRoute({
             {showLinkList && <LinkList items={linkItems} />}
           </>
         )}
-        {!isLoading && template && (
-          <div className="fixed inset-x-0 bottom-6 z-50 grid place-items-center pointer-events-none">
-            <div className="flex gap-2 w-fit px-4 py-2 rounded-xl bg-white shadow-lg pointer-events-auto">
-              <button
-                onClick={() => setShowLinkBadges((prev) => !prev)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  showLinkBadges ? 'bg-black text-white' : 'bg-white text-[#4B4B4B] border border-[#D9D9D9]'
-                }`}
-              >
-                링크
-              </button>
-              <button
-                onClick={() => setShowLinkList((prev) => !prev)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  showLinkList ? 'bg-black text-white' : 'bg-white text-[#4B4B4B] border border-[#D9D9D9]'
-                }`}
-              >
-                리스트
-              </button>
-            </div>
-          </div>
-        )}
+        <div className='absolute bottom-5 w-full text-center'>
+          <p className='text-black/70 text-xs'>Created by @{username}</p>
+        </div>
       </div>
     );
   },
