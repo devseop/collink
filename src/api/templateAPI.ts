@@ -164,7 +164,7 @@ export type PublicTemplate = {
   animationType?: 'default' | 'spread' | 'collage';
 };
 
-export async function getLatestPublishedCustomTemplateByUser(
+export async function getPublishedTemplateByUser(
   userId: string
 ): Promise<PublicTemplate | null> {
   const { data, error } = await supabase
