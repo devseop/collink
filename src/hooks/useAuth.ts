@@ -37,7 +37,8 @@ export function useAuth() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: 'http://localhost:3000/',
+          // redirectTo: 'http://localhost:3000/',
+          redirectTo: window.location.origin
         },
       });
 
