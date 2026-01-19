@@ -5,13 +5,7 @@ import IconTextBold from '../../../assets/icons/ic_bold.svg?react';
 import IconTextUnderline from '../../../assets/icons/ic_underline.svg?react';
 import IconTextStrikethrough from '../../../assets/icons/ic_strikethrough.svg?react';
 import IconClose from '../../../assets/icons/ic_close.svg?react';
-
-const FONT_OPTIONS = [
-  { label: '메모먼트 꾹꾹체', value: 'MemomentKkukkukk' },
-  { label: '와일드각', value: 'WILDgag' },
-  { label: 'zen serif', value: 'Zen Serif' },
-  { label: '꾸불림체', value: 'BMKkubulim' },
-];
+import { FONT_OPTIONS } from '../../../constants/fonts';
 
 type OverlayEditModalProps = {
   selectedImageOverlay: (Overlay & { type: 'image' }) | null;
@@ -72,7 +66,7 @@ export default function OverlayEditModal({
 
   const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
   const selectedFontLabel =
-    FONT_OPTIONS.find((option) => option.value === selectedTextOverlay?.fontFamily)?.label ??
+    FONT_OPTIONS.find((option) => option.family === selectedTextOverlay?.fontFamily)?.label ??
     selectedTextOverlay?.fontFamily ??
     '폰트 선택';
 
@@ -283,19 +277,19 @@ export default function OverlayEditModal({
         <div className="fixed left-1/2 -translate-x-1/2 bottom-[calc(2.5rem+32px)] z-50 w-fit">
           <div className="flex items-center gap-2 overflow-x-auto">
             {FONT_OPTIONS.map((option) => {
-              const isSelected = option.value === selectedTextOverlay.fontFamily;
+              const isSelected = option.family === selectedTextOverlay.fontFamily;
               return (
                 <button
-                  key={option.value}
+                  key={option.family}
                   type="button"
                   onClick={() => {
-                    handleTextStyleChange({ fontFamily: option.value });
+                    handleTextStyleChange({ fontFamily: option.family });
                     setIsFontMenuOpen(false);
                   }}
                   className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
                     isSelected ? 'bg-[#222222] text-white' : 'bg-[#F4F4F4] text-[#222222]'
                   }`}
-                  style={{ fontFamily: option.value }}
+                  style={{ fontFamily: option.family }}
                 >
                   {option.label}
                 </button>

@@ -13,37 +13,6 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
-@font-face {
-  font-family: 'MemomentKkukkukk';
-  src: url('./assets/fonts/MemomentKkukkukk.otf') format('opentype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'BMKkubulim';
-  src: url('./assets/fonts/BMKkubulim.otf') format('opentype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Zen Serif';
-  src: url('./assets/fonts/ZEN-SERIF-Regular.otf') format('opentype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'WILDgag';
-  src: url('./assets/fonts/WILDgag-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
 
 body {
   margin: 0;

@@ -21,6 +21,8 @@ import { useOverlaySelectionState } from '../../hooks/templates/useOverlaySelect
 import { mapOverlayToTemplateItem, mapTemplateToEditorState } from '../../utils/editorOverlayMapper';
 import AnimationSelector from './components/AnimationSelector';
 import { safeRandomUUID } from '../../utils/random';
+import { loadFonts } from '../../utils/loadFonts';
+import { FONT_OPTIONS } from '../../constants/fonts';
 
 
 const getTextDecorationValue = (underline?: boolean, strikethrough?: boolean) => {
@@ -237,6 +239,10 @@ const editTemplatesRoute = createRoute({
         animationType,
       };
     }, [backgroundColor, backgroundFile, isBackgroundColored, overlays, previewImage, animationType]);
+
+    useEffect(() => {
+      loadFonts(FONT_OPTIONS).catch(() => {});
+    }, []);
 
     const hasChanges = useMemo(() => {
       const initial = initialSnapshotRef.current;
