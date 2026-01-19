@@ -1,9 +1,17 @@
+import { useEffect, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import type { Overlay } from '../../../types/overlay';
 import IconTextBold from '../../../assets/icons/ic_bold.svg?react';
 import IconTextUnderline from '../../../assets/icons/ic_underline.svg?react';
 import IconTextStrikethrough from '../../../assets/icons/ic_strikethrough.svg?react';
 import IconClose from '../../../assets/icons/ic_close.svg?react';
+
+const FONT_OPTIONS = [
+  { label: '메모먼트 꾹꾹체', value: 'MemomentKkukkukk' },
+  { label: '와일드각', value: 'WILDgag' },
+  { label: 'zen serif', value: 'Zen Serif' },
+  { label: '꾸불림체', value: 'BMKkubulim' },
+];
 
 type OverlayEditModalProps = {
   selectedImageOverlay: (Overlay & { type: 'image' }) | null;
@@ -62,9 +70,19 @@ export default function OverlayEditModal({
 }: OverlayEditModalProps) {
   if (!selectedImageOverlay && !(selectedTextOverlay && !editingOverlayId)) return null;
 
+  const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
+  const selectedFontLabel =
+    FONT_OPTIONS.find((option) => option.value === selectedTextOverlay?.fontFamily)?.label ??
+    selectedTextOverlay?.fontFamily ??
+    '폰트 선택';
+
+  useEffect(() => {
+    setIsFontMenuOpen(false);
+  }, [selectedTextOverlay, editingOverlayId]);
+
   return (
     <div
-      className={`z-50 transition-[bottom] duration-200 rounded-t-lg ${
+      className={`z-50 transition-[bottom] duration-200 w-fit ${
         isTextModalFloating
           ? 'fixed left-1/2 -translate-x-1/2 rounded-2xl bg-white shadow-lg w-[min(92vw,420px)]'
           : 'fixed left-0 right-0 bg-white backdrop-blur-sm border-t border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] max-h-[70vh] overflow-y-auto overscroll-contain'
@@ -168,7 +186,7 @@ export default function OverlayEditModal({
       )}
 
       {selectedTextOverlay && !editingOverlayId && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 px-4 h-14 items-center justify-center">
           {/* 순서 UI */}
           {/* <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-[#101010]">순서</p>
@@ -196,7 +214,7 @@ export default function OverlayEditModal({
             </div>
           </div> */}
 
-          <div className="flex gap-2 w-full items-center justify-between">
+          <div className="flex gap-2 w-fit items-center">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -240,9 +258,17 @@ export default function OverlayEditModal({
                 </button>
               </div>
             </div>
-            <div className="ml-auto flex items-center gap-1 rounded-md border border-black/10 px-2 py-1 text-xs text-[#6B6B6B]">
-              <span>Pretendard</span>
-              <span className="text-[10px]">▾</span>
+            <div className="ml-auto">
+              <button
+                type="button"
+                onClick={() => setIsFontMenuOpen((prev) => !prev)}
+                className={`h-8 w-8 rounded-md items-center justify-center flex ${
+                  isFontMenuOpen ? 'bg-[#F4F4F4]' : 'bg-white'
+                }`}
+                aria-label={`폰트 선택: ${selectedFontLabel}`}
+              >
+                <span className="text-sm font-semibold text-[#222222]">A</span>
+              </button>
             </div>
           </div>
 
@@ -251,6 +277,31 @@ export default function OverlayEditModal({
               <HexColorPicker color={textColorValue} onChange={handleTextColorChange} style={{ width: '100%' }} />
             </div>
           )}
+        </div>
+      )}
+      {isFontMenuOpen && selectedTextOverlay && !editingOverlayId && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-[calc(2.5rem+32px)] z-50 w-fit">
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {FONT_OPTIONS.map((option) => {
+              const isSelected = option.value === selectedTextOverlay.fontFamily;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    handleTextStyleChange({ fontFamily: option.value });
+                    setIsFontMenuOpen(false);
+                  }}
+                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
+                    isSelected ? 'bg-[#222222] text-white' : 'bg-[#F4F4F4] text-[#222222]'
+                  }`}
+                  style={{ fontFamily: option.value }}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
