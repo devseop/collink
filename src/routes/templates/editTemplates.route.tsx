@@ -327,13 +327,6 @@ const editTemplatesRoute = createRoute({
       startEditingTextOverlay,
     });
 
-    useEffect(() => {
-      if (typeof document === 'undefined') return;
-      document.body.style.overflow = isOverlayFocused ? 'hidden' : '';
-      return () => {
-        document.body.style.overflow = '';
-      };
-    }, [isOverlayFocused]);
 
     const selectedImageIndex = useMemo(
       () => (selectedImageOverlay ? overlays.findIndex((overlay) => overlay.id === selectedImageOverlay.id) : -1),
@@ -583,11 +576,18 @@ const editTemplatesRoute = createRoute({
 
   return (
       <div
-        className="relative w-full h-screen overflow-hidden"
+        className="relative w-full h-[100dvh] overflow-hidden"
         onMouseDown={handleBackgroundPointerDown}
         onTouchStart={handleBackgroundPointerDown}
       >
-        <Header useConfirmOnBack={hasChanges} />
+        <Header
+          useConfirmOnBack={hasChanges}
+          rightAction={{
+            label: '공유',
+            onClick: handleSaveTemplate,
+            disabled: Boolean(editingOverlayId),
+          }}
+        />
         {previewImage && (
           <div className="fixed inset-0 z-0">
             <img src={previewImage} alt="미리보기" className="w-full h-full object-cover" />
@@ -724,16 +724,6 @@ const editTemplatesRoute = createRoute({
             onOpenMotionOptions={() => setShowMotionOptions(true)}
           />
         )}
-        <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
-          <button
-            onClick={handleSaveTemplate}
-            disabled={Boolean(editingOverlayId)}
-            className="px-3 py-3 bg-[#B1FF8D] text-white font-semibold rounded-full shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            aria-label="다음"
-          >
-            <p>다음</p>
-          </button>
-        </div>
       </div>
     );
   },

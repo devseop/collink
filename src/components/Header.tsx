@@ -7,6 +7,12 @@ type HeaderProps = {
   confirmTitle?: string;
   confirmMessage?: string;
   onConfirmBack?: () => void;
+  rightAction?: {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+    ariaLabel?: string;
+  };
 };
 
 // Register once for accessibility
@@ -19,6 +25,7 @@ const Header = ({
   confirmTitle = '이전으로 돌아갈까요?',
   confirmMessage = '지금 돌아가면 현재 작업 중인 내용이 삭제됩니다.',
   onConfirmBack,
+  rightAction,
 }: HeaderProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -49,10 +56,23 @@ const Header = ({
 
   return (
     <>
-      <div className="fixed top-0 left-0 z-50 w-full px-5 py-3 bg-transparent flex items-center justify-between">
-        <button onClick={handleGoBack} aria-label="이전으로 이동">
+      <div className="fixed top-0 left-0 z-50 w-full p-5 flex items-center justify-between">
+        <button onClick={handleGoBack} aria-label="이전으로 이동" className="w-10 h-10 bg-white/70 rounded-full backdrop-blur-sm flex items-center justify-center">
           <IconArrowLeft className="w-5 h-5" aria-hidden />
         </button>
+        {rightAction ? (
+          <button
+            type="button"
+            onClick={rightAction.onClick}
+            disabled={rightAction.disabled}
+            aria-label={rightAction.ariaLabel ?? rightAction.label}
+            className="px-4 py-2 bg-white/70 text-[#222222] text-sm font-semibold rounded-full border border-white/40 backdrop-blur-sm disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            {rightAction.label}
+          </button>
+        ) : (
+          <span className="w-5" aria-hidden />
+        )}
       </div>
 
       {useConfirmOnBack && (

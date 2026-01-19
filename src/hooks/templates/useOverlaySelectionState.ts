@@ -52,7 +52,7 @@ export function useOverlaySelectionState({
     [overlays, selectedTextId]
   );
 
-  const isOverlayFocused = Boolean(selectedImageId || selectedTextId || editingOverlayId || isLinkInputFocused);
+  const isOverlayFocused = Boolean(selectedImageId || selectedTextId || editingOverlayId);
   const isTextModalFloating = Boolean(selectedTextOverlay && !editingOverlayId);
 
   useEffect(() => {
