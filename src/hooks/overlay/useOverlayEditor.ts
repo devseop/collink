@@ -177,13 +177,14 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
     setEditingOverlayId(null);
   }, []);
 
-  const updateImageLink = useCallback((overlayId: string, linkUrl?: string) => {
+  const updateImageLink = useCallback((overlayId: string, linkUrl?: string, linkDescription?: string) => {
     setOverlays((prev) =>
       prev.map((overlay) =>
         overlay.id === overlayId && overlay.type === 'image'
           ? {
               ...overlay,
               linkUrl,
+              linkDescription,
             }
           : overlay
       )

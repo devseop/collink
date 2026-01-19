@@ -33,12 +33,12 @@ export default function BackgroundOptionsModal({
     <div className="fixed left-0 right-0 bottom-0 z-50">
       <div
         className={`mb-0 bg-white backdrop-blur-sm shadow-[0_-1px_12px_rgba(0,0,0,0.2)] flex flex-col rounded-t-lg ${
-          showBackgroundToggle ? 'gap-2 rounded-b-lg' : 'gap-5'
+          showBackgroundToggle ? 'gap-2' : 'gap-5'
         }`}
         onMouseDown={(event) => event.stopPropagation()}
         onTouchStart={(event) => event.stopPropagation()}
       >
-        <div className={`flex items-center justify-between px-5 py-5 ${!showBackgroundToggle && 'border-b border-[#D3D3D3]'}`}>
+        <div className={`flex items-center justify-between px-4 py-5 ${!showBackgroundToggle && 'border-b border-[#D3D3D3]'}`}>
           <p className="text-lg font-semibold text-[#222222] leading-none text-left">
             {!showBackgroundToggle ? '배경색 고르기' : '배경 수정'}
           </p>

@@ -23,6 +23,7 @@ export type TemplateItem = {
   text?: string;
   hasLink?: boolean;
   linkUrl?: string;
+  linkDescription?: string;
   index?: number;
   coordinates?: TemplateItemCoordinate;
   size?: TemplateItemSize;

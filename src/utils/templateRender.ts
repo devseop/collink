@@ -5,6 +5,7 @@ type MappedImageItem = {
   key: string | number;
   src: string;
   linkUrl?: string;
+  linkDescription?: string;
   style: {
     left: number;
     top: number;
@@ -47,6 +48,7 @@ export function mapTemplateItemsToRender(items: TemplateItem[]): MappedTemplateI
         key,
         src: item.imageUrl,
         linkUrl: item.linkUrl,
+        linkDescription: item.linkDescription,
         style: {
           left,
           top,

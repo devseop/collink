@@ -5,6 +5,12 @@
 :root {
   color: #0f172a;
   background-color: #ffffff;
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {

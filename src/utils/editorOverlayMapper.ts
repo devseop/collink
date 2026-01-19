@@ -59,6 +59,7 @@ export const mapTemplateToEditorState = (template: DefaultTemplate | null): Edit
         baseHeight,
         scalePercent,
         linkUrl: item.linkUrl ?? undefined,
+        linkDescription: item.linkDescription ?? undefined,
       });
       return;
     }
@@ -100,7 +101,7 @@ export const getTextDecorationValue = (underline?: boolean, strikethrough?: bool
 export const mapOverlayToTemplateItem = (
   overlay: Overlay,
   index: number,
-  options?: { imageUrl?: string; linkUrl?: string }
+  options?: { imageUrl?: string; linkUrl?: string; linkDescription?: string }
 ): TemplateItem => {
   const base = {
     index,
@@ -110,10 +111,12 @@ export const mapOverlayToTemplateItem = (
   if (overlay.type === 'image') {
     const imageUrl = options?.imageUrl ?? overlay.image;
     const linkUrl = options?.linkUrl;
+    const linkDescription = options?.linkDescription ?? overlay.linkDescription;
     return {
       ...base,
       imageUrl,
       linkUrl,
+      linkDescription,
       hasLink: Boolean(linkUrl),
       rotation: overlay.rotation ?? 0,
       size: {

@@ -20,6 +20,8 @@ export function useOverlaySelectionState({
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [linkInputValue, setLinkInputValue] = useState('');
+  const [linkDescriptionInputValue, setLinkDescriptionInputValue] = useState('');
+  const [isLinkInputFocused, setIsLinkInputFocused] = useState(false);
   const [showTextColorPicker, setShowTextColorPicker] = useState(false);
   const [textColorValue, setTextColorValue] = useState('#222222');
   const [keyboardInset, setKeyboardInset] = useState(0);
@@ -50,7 +52,7 @@ export function useOverlaySelectionState({
     [overlays, selectedTextId]
   );
 
-  const isOverlayFocused = Boolean(selectedImageId || selectedTextId || editingOverlayId);
+  const isOverlayFocused = Boolean(selectedImageId || selectedTextId || editingOverlayId || isLinkInputFocused);
   const isTextModalFloating = Boolean(selectedTextOverlay && !editingOverlayId);
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export function useOverlaySelectionState({
   }, [editingOverlayId, overlays]);
 
   useEffect(() => {
-    if (!editingOverlayId) {
+    if (!editingOverlayId && !isLinkInputFocused) {
       setKeyboardInset(0);
       keyboardBaselineRef.current = null;
       return;
@@ -94,7 +96,7 @@ export function useOverlaySelectionState({
       window.removeEventListener('resize', updateInset);
       window.removeEventListener('orientationchange', updateInset);
     };
-  }, [editingOverlayId]);
+  }, [editingOverlayId, isLinkInputFocused]);
 
   useEffect(() => {
     if (!lastAddedImageOverlayId) return;
@@ -104,6 +106,10 @@ export function useOverlaySelectionState({
 
   useEffect(() => {
     setLinkInputValue(selectedImageOverlay?.linkUrl ?? '');
+    setLinkDescriptionInputValue(selectedImageOverlay?.linkDescription ?? '');
+    if (!selectedImageOverlay) {
+      setIsLinkInputFocused(false);
+    }
   }, [selectedImageOverlay]);
 
   useEffect(() => {
@@ -167,6 +173,10 @@ export function useOverlaySelectionState({
     isTextModalFloating,
     linkInputValue,
     setLinkInputValue,
+    linkDescriptionInputValue,
+    setLinkDescriptionInputValue,
+    isLinkInputFocused,
+    setIsLinkInputFocused,
     showTextColorPicker,
     setShowTextColorPicker,
     textColorValue,

@@ -30,7 +30,7 @@ const LinkList = ({ items }: { items: LinkItem[] }) => (
         <div key={item.key} className="flex items-center gap-3 border-b border-black/5 pb-3 last:border-b-0 last:pb-0">
           <img src={item.src} alt="링크 스티커" className="h-12 w-12 rounded-md object-cover" />
           <div className="flex-1">
-            <p className="text-sm text-[#222222] font-medium">링크 스티커</p>
+            <p className="text-sm text-[#222222] font-medium">{item.linkDescription || '링크 스티커'}</p>
             <p className="text-xs text-[#6B6B6B] break-all">{item.linkUrl}</p>
           </div>
         </div>
@@ -247,7 +247,7 @@ const publicTemplateRoute = createRoute({
           </>
         )}
         <div className='absolute bottom-5 w-full text-center'>
-          <p className='text-black/70 text-xs'>Created by @{username}</p>
+          <p className='text-black/70 text-xs'>Created by {`${username === 'dress_up' ? 'linkku' : username}`}</p>
         </div>
       </div>
     );

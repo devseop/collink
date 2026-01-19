@@ -3,6 +3,7 @@ import type { Overlay } from '../../../types/overlay';
 import IconTextBold from '../../../assets/icons/ic_bold.svg?react';
 import IconTextUnderline from '../../../assets/icons/ic_underline.svg?react';
 import IconTextStrikethrough from '../../../assets/icons/ic_strikethrough.svg?react';
+import IconClose from '../../../assets/icons/ic_close.svg?react';
 
 type OverlayEditModalProps = {
   selectedImageOverlay: (Overlay & { type: 'image' }) | null;
@@ -12,7 +13,11 @@ type OverlayEditModalProps = {
   keyboardInset: number;
   linkInputValue: string;
   setLinkInputValue: (value: string) => void;
+  linkDescriptionInputValue: string;
+  setLinkDescriptionInputValue: (value: string) => void;
+  setIsLinkInputFocused: (value: boolean) => void;
   handleLinkUrlConfirm: () => void;
+  handleClose: () => void;
   moveUp: (overlayId: string) => void;
   moveDown: (overlayId: string) => void;
   canMoveImageUp: boolean;
@@ -40,7 +45,11 @@ export default function OverlayEditModal({
   keyboardInset,
   linkInputValue,
   setLinkInputValue,
+  linkDescriptionInputValue,
+  setLinkDescriptionInputValue,
+  setIsLinkInputFocused,
   handleLinkUrlConfirm,
+  handleClose,
   moveUp,
   moveDown,
   canMoveImageUp,
@@ -55,10 +64,10 @@ export default function OverlayEditModal({
 
   return (
     <div
-      className={`z-50 transition-[bottom] duration-200 ${
+      className={`z-50 transition-[bottom] duration-200 rounded-t-lg ${
         isTextModalFloating
-          ? 'fixed left-1/2 -translate-x-1/2 rounded-2xl bg-white px-4 py-3 shadow-lg w-[min(92vw,420px)]'
-          : 'fixed left-0 right-0 bg-white backdrop-blur-sm border-t border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] px-4 py-4'
+          ? 'fixed left-1/2 -translate-x-1/2 rounded-2xl bg-white shadow-lg w-[min(92vw,420px)]'
+          : 'fixed left-0 right-0 bg-white backdrop-blur-sm border-t border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] max-h-[70vh] overflow-y-auto overscroll-contain'
       }`}
       style={{
         bottom: isTextModalFloating ? '2.5rem' : editingOverlayId ? `${keyboardInset + 16}px` : '0px',
@@ -67,62 +76,94 @@ export default function OverlayEditModal({
       onTouchStart={(event) => event.stopPropagation()}
     >
       {selectedImageOverlay && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-[#101010]">순서</p>
-            <div className="flex gap-2">
-              <button
-                className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  moveDown(selectedImageOverlay.id);
-                }}
-                disabled={!canMoveImageDown}
-              >
-                뒤로
-              </button>
-              <button
-                className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  moveUp(selectedImageOverlay.id);
-                }}
-                disabled={!canMoveImageUp}
-              >
-                앞으로
-              </button>
+        <div className="flex flex-col gap-5 mb-6">
+          <div className="flex items-center justify-between border-b border-[#d3d3d3] px-4 py-5">
+            <p className="text-lg font-semibold text-[#222222] leading-none text-left">스티커 설정</p>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleClose();
+              }}
+              aria-label="닫기"
+            >
+              <IconClose className="h-4 w-4 text-[#222222]" aria-hidden />
+            </button>
+          </div>
+          <div className="px-5 flex flex-col gap-6 pb-5">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-[#222222]">순서</p>
+              <div className="flex gap-2">
+                <button
+                  className="px-2 py-1 rounded-lg border text-xs disabled:opacity-40"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    moveDown(selectedImageOverlay.id);
+                  }}
+                  disabled={!canMoveImageDown}
+                >
+                  뒤로
+                </button>
+                <button
+                  className="px-2 py-1 rounded-lg border text-xs disabled:opacity-40"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    moveUp(selectedImageOverlay.id);
+                  }}
+                  disabled={!canMoveImageUp}
+                >
+                  앞으로
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium text-[#222222]">링크</p>
+              <div className="flex gap-2">
+                <div className="flex items-center rounded-lg bg-[#F4F4F4] px-3 w-full h-10">
+                  <span className="text-sm text-[#313131] mr-[1px]">https://</span>
+                <input
+                  type="text"
+                  value={linkInputValue}
+                  onChange={(event) => setLinkInputValue(event.target.value)}
+                  onClick={(event) => event.stopPropagation()}
+                  onFocus={() => setIsLinkInputFocused(true)}
+                  onBlur={() => setIsLinkInputFocused(false)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      handleLinkUrlConfirm();
+                    }
+                  }}
+                  placeholder="example.com"
+                  className="flex-1 text-[16px] bg-transparent focus:outline-none leading-none touch-manipulation"
+                />
+                </div>
+              </div>
+              <p className="text-[11px] text-[#666666] leading-none">이 페이지를 방문하는 사람이 스티커를 누르면 이 링크로 이동할 수 있어요</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium text-[#222222]">설명</p>
+            <input
+              type="text"
+              value={linkDescriptionInputValue}
+              onChange={(event) => setLinkDescriptionInputValue(event.target.value)}
+              onClick={(event) => event.stopPropagation()}
+              onFocus={() => setIsLinkInputFocused(true)}
+              onBlur={() => setIsLinkInputFocused(false)}
+              placeholder="링크를 간단하게 설명할 문구를 입력해주세요"
+              className="w-full rounded-lg bg-[#F4F4F4] px-3 h-10 text-[16px] focus:outline-none leading-none placeholder:text-[#929292] placeholder:font-sm touch-manipulation"
+            />
             </div>
           </div>
-
-          <div className="flex flex-col gap-2 pt-2">
-            <p className="text-sm font-semibold text-[#101010]">링크 추가</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={linkInputValue}
-                onChange={(event) => setLinkInputValue(event.target.value)}
-                onClick={(event) => event.stopPropagation()}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    handleLinkUrlConfirm();
-                  }
-                }}
-                placeholder="https://example.com"
-                className="flex-1 rounded-lg border border-[#D9D9D9] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-              />
-              <button
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleLinkUrlConfirm();
-                }}
-                className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold"
-              >
-                확인
-              </button>
-            </div>
-            <p className="text-[11px] text-[#A0A0A0]">링크가 있으면 공개 화면에서 클릭할 수 있어요.</p>
-          </div>
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
+              handleLinkUrlConfirm();
+            }}
+            className="w-calc(100% - 2rem) mx-5 py-4 rounded-lg bg-[#B1FF8D] text-black text-base font-semibold leading-none"
+          >
+            추가하기
+          </button>
         </div>
       )}
 

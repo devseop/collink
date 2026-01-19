@@ -62,6 +62,7 @@ type CustomTemplateItemRow = {
   font_family?: string | null;
   font_color?: string | null;
   link_url?: string | null;
+  link_description?: string | null;
   has_link?: boolean | null;
   text_decoration?: string | null;
 };
@@ -133,6 +134,7 @@ export async function createCustomTemplate(payload: CustomTemplatePayload) {
       font_family: item.font?.family ?? null,
       font_color: item.font?.color ?? null,
       link_url: item.linkUrl ?? null,
+      link_description: item.linkDescription ?? null,
       has_link: item.hasLink ?? null,
       text_decoration: getTextDecorationValue({
         underline: item.font?.decoration?.includes('underline'),
@@ -199,6 +201,7 @@ export async function getPublishedTemplateByUser(
     text: item.text_content ?? undefined,
     hasLink: item.has_link ?? undefined,
     linkUrl: item.link_url ?? undefined,
+    linkDescription: item.link_description ?? undefined,
     index: item.order_index ?? undefined,
     coordinates: { x: item.pos_x ?? 0, y: item.pos_y ?? 0 },
     size:

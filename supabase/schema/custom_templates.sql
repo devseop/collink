@@ -37,3 +37,6 @@ create policy "Allow read published custom templates"
 on public.custom_templates
 for select
 using (is_published = true);
+
+alter table if exists public.custom_template_items
+  add column if not exists link_description text;

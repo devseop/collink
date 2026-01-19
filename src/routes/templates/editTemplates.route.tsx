@@ -105,7 +105,8 @@ const overlaysEqual = (a: Overlay[], b: Overlay[]) => {
         left.baseWidth !== right.baseWidth ||
         left.baseHeight !== right.baseHeight ||
         left.scalePercent !== right.scalePercent ||
-        left.linkUrl !== right.linkUrl
+        left.linkUrl !== right.linkUrl ||
+        left.linkDescription !== right.linkDescription
       ) {
         return false;
       }
@@ -306,6 +307,9 @@ const editTemplatesRoute = createRoute({
       isTextModalFloating,
       linkInputValue,
       setLinkInputValue,
+      linkDescriptionInputValue,
+      setLinkDescriptionInputValue,
+      setIsLinkInputFocused,
       showTextColorPicker,
       setShowTextColorPicker,
       textColorValue,
@@ -322,6 +326,14 @@ const editTemplatesRoute = createRoute({
       finishEditingTextOverlay,
       startEditingTextOverlay,
     });
+
+    useEffect(() => {
+      if (typeof document === 'undefined') return;
+      document.body.style.overflow = isOverlayFocused ? 'hidden' : '';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }, [isOverlayFocused]);
 
     const selectedImageIndex = useMemo(
       () => (selectedImageOverlay ? overlays.findIndex((overlay) => overlay.id === selectedImageOverlay.id) : -1),
@@ -538,8 +550,19 @@ const editTemplatesRoute = createRoute({
     const handleLinkUrlConfirm = useCallback(() => {
       if (!selectedImageOverlay) return;
       const trimmed = linkInputValue.trim();
-      updateImageLink(selectedImageOverlay.id, trimmed || undefined);
-    }, [linkInputValue, selectedImageOverlay, updateImageLink]);
+      const descriptionTrimmed = linkDescriptionInputValue.trim();
+      if (!trimmed) {
+        updateImageLink(selectedImageOverlay.id, undefined, undefined);
+        return;
+      }
+      updateImageLink(selectedImageOverlay.id, trimmed, descriptionTrimmed || undefined);
+    }, [linkInputValue, linkDescriptionInputValue, selectedImageOverlay, updateImageLink]);
+
+    const handleOverlayModalClose = useCallback(() => {
+      setSelectedImageId(null);
+      setSelectedTextId(null);
+      finishEditingTextOverlay();
+    }, [finishEditingTextOverlay, setSelectedImageId, setSelectedTextId]);
 
     const handleTextStyleChange = useCallback(
       (style: { fontFamily?: string; fontSize?: number; fontWeight?: number; underline?: boolean; strikethrough?: boolean; textColor?: string }) => {
@@ -644,7 +667,11 @@ const editTemplatesRoute = createRoute({
           keyboardInset={keyboardInset}
           linkInputValue={linkInputValue}
           setLinkInputValue={setLinkInputValue}
+          linkDescriptionInputValue={linkDescriptionInputValue}
+          setLinkDescriptionInputValue={setLinkDescriptionInputValue}
+          setIsLinkInputFocused={setIsLinkInputFocused}
           handleLinkUrlConfirm={handleLinkUrlConfirm}
+          handleClose={handleOverlayModalClose}
           moveUp={moveUp}
           moveDown={moveDown}
           canMoveImageUp={canMoveImageUp}
