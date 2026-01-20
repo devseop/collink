@@ -29,7 +29,8 @@ body {
 
   #root {
     width: 100%;
-    max-width: 580px;
+    width: calc((100dvh - 80px) * 430 / 932);
+    max-width: none;
     height: calc(100dvh - 80px);
     margin: 0 auto;
     background-color: #ffffff;
