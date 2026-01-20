@@ -7,7 +7,7 @@ type EmptyStateProps = {
 
 export default function EmptyState({ onSelectImage, onSelectColor }: EmptyStateProps) {
   return (
-    <div className="flex justify-center items-center px-5 pt-[68px] pb-12 h-dvh">
+    <div className="flex justify-center items-center px-5 pt-[68px] pb-12 h-full min-h-[calc(100dvh-80px)] sm:min-h-0">
       <div className="w-full h-full min-w-[320px] border border-dashed border-[#CFCFCF] rounded-2xl text-center bg-white/70">
         <div className="flex flex-col items-center justify-center h-full">
           <div className="mx-auto mb-4 flex items-center justify-center">

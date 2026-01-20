@@ -8,7 +8,9 @@ function App() {
   
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <div className="app-shell">
+        <RouterProvider router={router} />
+      </div>
     </QueryClientProvider>
   );
 }
