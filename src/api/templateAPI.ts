@@ -37,6 +37,7 @@ type CustomTemplateRow = {
   background_image_url: string | null;
   background_color: string | null;
   is_background_colored: boolean | null;
+  template_thumbnail?: string | null;
   created_at?: string;
   is_published?: boolean | null;
   category?: Category | null;
@@ -72,6 +73,7 @@ export type CustomTemplatePayload = {
   backgroundImageUrl?: string;
   backgroundColor?: string;
   isBackgroundColored?: boolean;
+  thumbnailUrl?: string;
   items: TemplateItem[];
   customTemplateId: string;
   isPublished?: boolean;
@@ -105,6 +107,7 @@ export async function createCustomTemplate(payload: CustomTemplatePayload) {
       background_image_url: payload.backgroundImageUrl ?? null,
       background_color: payload.backgroundColor ?? null,
       is_background_colored: payload.isBackgroundColored ?? false,
+      template_thumbnail: payload.thumbnailUrl ?? null,
       is_published: payload.isPublished ?? false,
       category: payload.category ?? null,
       animation_type: payload.animationType ?? 'default',
@@ -160,6 +163,7 @@ export type PublicTemplate = {
   backgroundImageUrl?: string;
   backgroundColor?: string;
   isBackgroundColored?: boolean;
+  thumbnailUrl?: string;
   items: TemplateItem[];
   isPublished?: boolean;
   category?: Category | null;
@@ -171,7 +175,7 @@ export async function getPublishedTemplateByUser(
 ): Promise<PublicTemplate | null> {
   const { data, error } = await supabase
     .from('custom_templates')
-    .select('id, user_id, background_image_url, background_color, is_background_colored, is_published, category, animation_type')
+    .select('id, user_id, background_image_url, background_color, is_background_colored, template_thumbnail, is_published, category, animation_type')
     .eq('user_id', userId)
     .eq('is_published', true)
     .order('created_at', { ascending: false })
@@ -235,6 +239,7 @@ export async function getPublishedTemplateByUser(
     backgroundImageUrl: data.background_image_url ?? undefined,
     backgroundColor: data.background_color ?? undefined,
     isBackgroundColored: data.is_background_colored ?? undefined,
+    thumbnailUrl: data.template_thumbnail ?? undefined,
     animationType: data.animation_type ?? 'default',
     items,
     isPublished: data.is_published ?? undefined,

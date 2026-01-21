@@ -2,6 +2,7 @@ import { createRoute } from '@tanstack/react-router';
 import usersRoute from './users.route';
 import { useAuth } from '../../hooks/useAuth';
 import { useGetProfile } from '../../hooks/users/useGetProfile';
+import { useGetPublishedTemplateByUser } from '../../hooks/templates/useGetPublishedTemplateByUser';
 // import IconBell from '../../assets/icons/ic_bell.svg?react';
 import IconSettings from '../../assets/icons/ic_setting.svg?react';
 import { useCallback } from 'react';
@@ -12,6 +13,7 @@ const usersProfileRoute = createRoute({
   component: function UsersProfilePage() {
     const { user } = useAuth();
     const { data: profile } = useGetProfile(user?.id ?? '');
+    const { data: template } = useGetPublishedTemplateByUser(user?.id ?? '');
     const {username, avatarUrl} = profile ?? {};
 
     // const handleGoToNotifications = useCallback(() => {
@@ -47,8 +49,16 @@ const usersProfileRoute = createRoute({
         </div> 
         {/* //TODO: add templates */}
         <div className='grid grid-cols-2 gap-5'>
-          <div className="w-full h-24 rounded-lg bg-[#F0F0F0]" aria-hidden />
-          <div className="w-full h-24 rounded-lg bg-[#F0F0F0]" aria-hidden />
+          <div className="w-full aspect-[430/932] rounded-lg bg-[#F0F0F0] overflow-hidden">
+            {template?.thumbnailUrl && (
+              <img
+                src={template.thumbnailUrl}
+                alt="템플릿 썸네일"
+                className="w-full h-full object-cover"
+              />
+            )}
+          </div>
+          <div className="w-full aspect-[430/932] rounded-lg bg-[#F0F0F0]" aria-hidden />
         </div> 
       </div>
     );

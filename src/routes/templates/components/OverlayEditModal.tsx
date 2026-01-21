@@ -77,7 +77,7 @@ export default function OverlayEditModal({
 
   return (
     <div
-      className={`z-50 transition-[bottom] duration-200 w-fit ${
+      className={`z-50 transition-[bottom] duration-200 w-full ${
         isTextModalFloating
           ? 'fixed left-1/2 -translate-x-1/2 rounded-2xl bg-white shadow-lg w-[min(92vw,420px)]'
           : 'fixed left-0 right-0 bg-white backdrop-blur-sm border-t border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] max-h-[70vh] overflow-y-auto overscroll-contain'

@@ -15,7 +15,7 @@ export default function EmptyState({ onSelectImage, onSelectColor }: EmptyStateP
           </div>
           <div className="flex flex-col items-center justify-center gap-2 mt-3 mb-6">
             <p className="text-sm font-medium text-[#222222] leading-none">
-              원하는 이미지나 배경색을 선택해주세요.
+              배경을 꾸미기 위해 이미지나 색상을 선택해주세요.
             </p>
             <p className="text-xs font-regular text-[#7A7A7A] leading-none">
               50MB 이하의 JPEG, PNG, and MP4만 가능해요.

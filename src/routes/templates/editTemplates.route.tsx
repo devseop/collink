@@ -10,7 +10,7 @@ import { useTemplateSelectionStore } from '../../stores/templateSelectionStore';
 import { useTemplateEditorStore, type TemplateEditorSnapshot } from '../../stores/templateEditorStore';
 import { IMAGE_SCALE_DEFAULT_PERCENT } from '../../constants/templates';
 import Header from '../../components/Header';
-import { uploadTemplateAsset } from '../../api/storageAPI';
+import { uploadTemplateAsset, uploadTemplateThumbnail } from '../../api/storageAPI';
 import { createCustomTemplate } from '../../api/templateAPI';
 import EmptyState from './components/EmptyState';
 import OverlayCanvas from './components/OverlayCanvas';
@@ -23,6 +23,7 @@ import AnimationSelector from './components/AnimationSelector';
 import { safeRandomUUID } from '../../utils/random';
 import { loadFonts } from '../../utils/loadFonts';
 import { FONT_OPTIONS } from '../../constants/fonts';
+import { useScreenshot } from 'use-react-screenshot';
 
 
 const getTextDecorationValue = (underline?: boolean, strikethrough?: boolean) => {
@@ -90,6 +91,31 @@ const normalizeRotation = (value: number) => {
   return mod < 0 ? mod + 360 : mod;
 };
 
+const loadImageElement = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.crossOrigin = 'anonymous';
+    img.src = src;
+  });
+
+const createThumbnailBlob = async (dataUrl: string, targetWidth = 270) => {
+  const img = await loadImageElement(dataUrl);
+  const width = Math.min(targetWidth, img.width);
+  const scale = width / img.width;
+  const height = Math.round(img.height * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(img, 0, 0, width, height);
+  return new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.92);
+  });
+};
+
 type AnimationType = 'default' | 'spread' | 'collage';
 
 const overlaysEqual = (a: Overlay[], b: Overlay[]) => {
@@ -143,6 +169,7 @@ const editTemplatesRoute = createRoute({
     const draftSnapshot = useTemplateEditorStore((state) => state.draft);
     const committedSnapshot = useTemplateEditorStore((state) => state.committed);
     const initialSnapshotRef = useRef<TemplateEditorSnapshot | null>(null);
+    const captureRef = useRef<HTMLDivElement | null>(null);
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
     const [backgroundOptionsSource, setBackgroundOptionsSource] = useState<'empty' | 'navbar' | null>(null);
@@ -156,6 +183,7 @@ const editTemplatesRoute = createRoute({
     const [isAnimationPreviewing, setIsAnimationPreviewing] = useState(false);
     const [viewportCenter, setViewportCenter] = useState({ x: 0, y: 0 });
     const [showMotionOptions, setShowMotionOptions] = useState(false);
+    const [, takeScreenshot] = useScreenshot({ type: 'image/jpeg', quality: 0.92 });
     const initialEditorState = useMemo(() => {
       const hasCommitted =
         committedSnapshot &&
@@ -370,6 +398,27 @@ const editTemplatesRoute = createRoute({
         replaceDraft(snapshot, selectedTemplate?.id ?? null);
         commitDraft(selectedTemplate?.id ?? null);
 
+        let thumbnailUrl: string | undefined;
+        
+        if (captureRef.current) {
+          try {
+            setSelectedImageId(null);
+            setSelectedTextId(null);
+            await new Promise<void>((resolve) => {
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+            });
+            const screenshot = await takeScreenshot(captureRef.current);
+            if (screenshot) {
+              const blob = await createThumbnailBlob(screenshot);
+              if (blob) {
+                thumbnailUrl = await uploadTemplateThumbnail({ file: blob, userId: user.id });
+              }
+            }
+          } catch {
+            thumbnailUrl = undefined;
+          }
+        }
+
         const backgroundImageUrl = backgroundFile
           ? await uploadTemplateAsset({
               file: backgroundFile,
@@ -404,6 +453,7 @@ const editTemplatesRoute = createRoute({
           backgroundImageUrl,
           backgroundColor: shouldUseColor ? backgroundColor ?? undefined : undefined,
           isBackgroundColored: shouldUseColor,
+          thumbnailUrl,
           items,
           isPublished: true,
           animationType,
@@ -426,10 +476,13 @@ const editTemplatesRoute = createRoute({
       isBackgroundColored,
       backgroundColor,
       animationType,
+      setSelectedImageId,
+      setSelectedTextId,
       replaceDraft,
       commitDraft,
       resetAll,
       selectedTemplate?.id,
+      takeScreenshot,
     ]);
 
     const handleSelectColor = useCallback(
@@ -594,61 +647,63 @@ const editTemplatesRoute = createRoute({
             disabled: Boolean(editingOverlayId),
           }}
         />
-        {previewImage && (
-          <div className="fixed inset-0 z-0">
-            <img src={previewImage} alt="미리보기" className="w-full h-full object-cover" />
-          </div>
-        )}
-        {!previewImage && isBackgroundColored && backgroundColor && (
-          <div
-            className="fixed inset-0 z-0"
-            style={{ backgroundColor }}
-          />
-        )}
+        <div ref={captureRef} className="absolute inset-0">
+          {previewImage && (
+            <div className="absolute inset-0 z-0">
+              <img src={previewImage} alt="미리보기" className="w-full h-full object-cover" />
+            </div>
+          )}
+          {!previewImage && isBackgroundColored && backgroundColor && (
+            <div
+              className="absolute inset-0 z-0"
+              style={{ backgroundColor }}
+            />
+          )}
 
-        {isEmptyState && (
-          <EmptyState
-            onSelectImage={triggerBackgroundSelect}
-            onSelectColor={() => {
-              setBackgroundOptionsSource('empty');
-              setBackgroundMode('color');
-              setShowBackgroundOptions(true);
+          {isEmptyState && (
+            <EmptyState
+              onSelectImage={triggerBackgroundSelect}
+              onSelectColor={() => {
+                setBackgroundOptionsSource('empty');
+                setBackgroundMode('color');
+                setShowBackgroundOptions(true);
+              }}
+            />
+          )}
+
+          <OverlayCanvas
+            overlays={overlays}
+            selectedImageId={selectedImageId}
+            selectedTextId={selectedTextId}
+            editingOverlayId={editingOverlayId}
+            overlayElementRefs={overlayElementRefs}
+            imageScaleDefaultPercent={IMAGE_SCALE_DEFAULT_PERCENT}
+            animationPreviewType={animationPreviewType}
+            isAnimationPreviewActive={isAnimationPreviewActive}
+            isAnimationPreviewing={isAnimationPreviewing}
+            viewportCenter={viewportCenter}
+            handleOverlayMouseDown={handleOverlayMouseDown}
+            handleOverlayTouchStart={handleOverlayTouchStart}
+            handleTextOverlayTouchStart={handleTextOverlayTouchStart}
+            handleTextOverlayTouchMove={handleTextOverlayTouchMove}
+            handleTextOverlayTouchEnd={handleTextOverlayTouchEnd}
+            updateTextOverlay={updateTextOverlay}
+            startEditingTextOverlay={startEditingTextOverlay}
+            finishEditingTextOverlay={finishEditingTextOverlay}
+            onSelectImage={(overlayId) => {
+              setSelectedImageId(overlayId);
+              setSelectedTextId(null);
             }}
+            onSelectText={(overlayId) => {
+              setSelectedImageId(null);
+              setSelectedTextId(overlayId);
+            }}
+            handleRemoveOverlayElement={handleRemoveOverlayElement}
+            startTransform={startTransform}
+            getTextDecorationValue={getTextDecorationValue}
+            getTextBoxStyles={getTextBoxStyles}
           />
-        )}
-
-        <OverlayCanvas
-          overlays={overlays}
-          selectedImageId={selectedImageId}
-          selectedTextId={selectedTextId}
-          editingOverlayId={editingOverlayId}
-          overlayElementRefs={overlayElementRefs}
-          imageScaleDefaultPercent={IMAGE_SCALE_DEFAULT_PERCENT}
-          animationPreviewType={animationPreviewType}
-          isAnimationPreviewActive={isAnimationPreviewActive}
-          isAnimationPreviewing={isAnimationPreviewing}
-          viewportCenter={viewportCenter}
-          handleOverlayMouseDown={handleOverlayMouseDown}
-          handleOverlayTouchStart={handleOverlayTouchStart}
-          handleTextOverlayTouchStart={handleTextOverlayTouchStart}
-          handleTextOverlayTouchMove={handleTextOverlayTouchMove}
-          handleTextOverlayTouchEnd={handleTextOverlayTouchEnd}
-          updateTextOverlay={updateTextOverlay}
-          startEditingTextOverlay={startEditingTextOverlay}
-          finishEditingTextOverlay={finishEditingTextOverlay}
-          onSelectImage={(overlayId) => {
-            setSelectedImageId(overlayId);
-            setSelectedTextId(null);
-          }}
-          onSelectText={(overlayId) => {
-            setSelectedImageId(null);
-            setSelectedTextId(overlayId);
-          }}
-          handleRemoveOverlayElement={handleRemoveOverlayElement}
-          startTransform={startTransform}
-          getTextDecorationValue={getTextDecorationValue}
-          getTextBoxStyles={getTextBoxStyles}
-        />
+        </div>
 
         <input
           type="file"

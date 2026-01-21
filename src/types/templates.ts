@@ -47,6 +47,7 @@ export type UserTemplate = {
   id?: string;
   category?: Category;
   backgroundImageUrl?: string;
+  thumbnailUrl?: string;
   items?: TemplateItem[];
   userId: string;
   isBackgroundColored?: boolean;

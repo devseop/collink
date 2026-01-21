@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 import { useGetProfile } from '../../hooks/users/useGetProfile';
 import IconImage from '../../assets/icons/ic_image.svg?react';
 import IconLinkSmall from '../../assets/icons/ic_link_small.svg?react';
+import { useGetPublishedTemplateByUser } from '../../hooks/templates/useGetPublishedTemplateByUser';
 
 const completedTemplatesRoute = createRoute({
   path: 'completed',
@@ -13,6 +14,7 @@ const completedTemplatesRoute = createRoute({
   component: function CompletedTemplatesPage() {
     const { user } = useAuth();
     const { data: profile } = useGetProfile(user?.id ?? '');
+    const { data: template } = useGetPublishedTemplateByUser(user?.id ?? '');
 
     const handleGoToProfile = useCallback(() => {
       if (!user) return;
@@ -35,12 +37,17 @@ const completedTemplatesRoute = createRoute({
             <p className="text-[15px] font-medium text-[#757575] text-center">계속 해서 발전시켜 나가보세요</p>
           </div>
         </div>
-        {/* // TODO: need template screenshot image */}
-        {/* 빈 상태 이미지 */}
         <div className="flex flex-col gap-3 items-center justify-center max-w-[270px] mx-auto">
-
-          <div className="flex justify-center items-center bg-[#F0F0F0] rounded-lg mx-auto w-[270px] h-[482px]">
-            <IconImage className="w-24 h-24 text-[#222222] opacity-30" aria-hidden />
+          <div className="flex justify-center items-center bg-[#F0F0F0] rounded-lg mx-auto w-[270px] aspect-[430/932] overflow-hidden">
+            {template?.thumbnailUrl ? (
+              <img
+                src={template.thumbnailUrl}
+                alt="템플릿 썸네일"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <IconImage className="w-24 h-24 text-[#222222] opacity-30" aria-hidden />
+            )}
           </div>
           <button className="flex flex-row gap-4 items-center justify-between w-full px-2" onClick={handleGoToLink}>
             <p className="text-[15px] font-medium text-[#222222] text-left">linkku.us/{profile?.username}</p>
