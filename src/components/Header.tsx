@@ -66,7 +66,7 @@ const Header = ({
             onClick={rightAction.onClick}
             disabled={rightAction.disabled}
             aria-label={rightAction.ariaLabel ?? rightAction.label}
-            className="px-4 py-2 bg-white/70 text-[#222222] text-sm font-semibold rounded-full border border-white/40 backdrop-blur-sm disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="px-4 h-10 bg-white/70 text-[#222222] text-[15px] leading-none font-semibold rounded-full border border-white/40 backdrop-blur-sm disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             {rightAction.label}
           </button>
