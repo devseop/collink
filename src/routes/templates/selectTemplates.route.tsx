@@ -149,7 +149,7 @@ const selectTemplatesRoute = createRoute({
           </div>
         </div>
         {/* Dot 인디케이터 */}
-        <div className="flex flex-row items-center justify-center gap-2 mb-[80px]">
+        <div className="flex flex-row items-center justify-center gap-2">
           {templates.map((_, index) => (
             <button
               key={index}
