@@ -5,6 +5,7 @@ import IconTextBold from '../../../assets/icons/ic_bold.svg?react';
 import IconTextUnderline from '../../../assets/icons/ic_underline.svg?react';
 import IconTextStrikethrough from '../../../assets/icons/ic_strikethrough.svg?react';
 import IconClose from '../../../assets/icons/ic_close.svg?react';
+import IconFont from '../../../assets/icons/ic_font.svg?react';
 import { FONT_OPTIONS } from '../../../constants/fonts';
 
 type OverlayEditModalProps = {
@@ -261,7 +262,7 @@ export default function OverlayEditModal({
                 }`}
                 aria-label={`폰트 선택: ${selectedFontLabel}`}
               >
-                <span className="text-sm font-semibold text-[#222222]">A</span>
+                <IconFont className="w-6 h-6 text-[#222222]" aria-hidden />
               </button>
             </div>
           </div>
