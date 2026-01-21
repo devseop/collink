@@ -8,7 +8,7 @@ const usersRoute = createRoute({
   getParentRoute: () => rootRoute,
   component: () => {
     return (
-      <div className="flex flex-col items-center justify-center h-full mx-4 mt-[76px]">
+      <div className="flex flex-col h-full mx-5 mt-5">
         <Outlet />
       </div>
     );
