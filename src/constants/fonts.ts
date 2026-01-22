@@ -23,7 +23,7 @@ export const FONT_OPTIONS: FontOption[] = [
     weight: 700,
   },
   {
-    label: 'zen serif',
+    label: 'Zen Serif',
     family: 'Zen Serif',
     path: 'ZEN-SERIF-Regular.otf',
     format: 'opentype',
@@ -36,4 +36,18 @@ export const FONT_OPTIONS: FontOption[] = [
     format: 'opentype',
     weight: 400,
   },
+  {
+    label: 'Barriecito',
+    family: 'Barriecito',
+    path: 'Barriecito-Regular.ttf',
+    format: 'truetype',
+    weight: 400,
+  },
+  {
+    label: '기랑해랑체',
+    family: 'BMKIRANGHAERANG',
+    path: 'BMKIRANGHAERANG-OTF.otf',
+    format: 'opentype',
+    weight: 400,
+  }
 ];
