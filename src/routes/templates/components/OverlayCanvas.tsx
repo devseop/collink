@@ -72,6 +72,9 @@ export default function OverlayCanvas({
         const textBoxStyles = isText
           ? getTextBoxStyles(overlay.textColor ?? '#222222', overlay.boxStyle ?? 0)
           : null;
+        const overlayTransform = isText
+          ? `rotate(${overlay.rotation ?? 0}deg) scale(${(overlay.scalePercent ?? imageScaleDefaultPercent) / 100})`
+          : `rotate(${overlay.rotation ?? 0}deg)`;
         const positionStyle: CSSProperties = {
           left: `${overlay.x}px`,
           top: `${overlay.y}px`,
@@ -116,7 +119,16 @@ export default function OverlayCanvas({
               }
             }}
           >
-            <div className="relative p-2">
+            <div
+              ref={(node) => {
+                overlayElementRefs.current[overlay.id] = node;
+              }}
+              className="relative p-2"
+              style={{
+                transform: overlayTransform,
+                transformOrigin: 'center',
+              }}
+            >
               {isSelected && (
                 <div className="pointer-events-none absolute inset-0 z-10" aria-hidden>
                   <div className="absolute -inset-1.5 border-2 border-dashed border-[#B1FF8D]" />
@@ -131,9 +143,6 @@ export default function OverlayCanvas({
                   isEditing ? (
                     <textarea
                       autoFocus
-                      ref={(node) => {
-                        overlayElementRefs.current[overlay.id] = node;
-                      }}
                       value={overlay.text}
                       onChange={(event) => updateTextOverlay(overlay.id, event.target.value)}
                       onBlur={() => finishEditingTextOverlay()}
@@ -145,8 +154,6 @@ export default function OverlayCanvas({
                         fontFamily: overlay.fontFamily,
                         color: textBoxStyles?.color ?? overlay.textColor ?? '#222222',
                         textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
-                        transform: `rotate(${overlay.rotation ?? 0}deg) scale(${(overlay.scalePercent ?? imageScaleDefaultPercent) / 100})`,
-                        transformOrigin: 'center',
                         caretColor: '#B1FF8D',
                         backgroundColor: textBoxStyles?.backgroundColor,
                       }}
@@ -154,9 +161,6 @@ export default function OverlayCanvas({
                     />
                   ) : (
                     <div
-                      ref={(node) => {
-                        overlayElementRefs.current[overlay.id] = node;
-                      }}
                       className="w-[140px] min-h-[24px] text-shadow-lg/30 text-center cursor-text touch-manipulation"
                       style={{
                         fontSize: `${overlay.fontSize}px`,
@@ -164,8 +168,6 @@ export default function OverlayCanvas({
                         fontFamily: overlay.fontFamily,
                         color: textBoxStyles?.color ?? overlay.textColor ?? '#222222',
                         textDecoration: getTextDecorationValue(overlay.underline, overlay.strikethrough),
-                        transform: `rotate(${overlay.rotation ?? 0}deg) scale(${(overlay.scalePercent ?? imageScaleDefaultPercent) / 100})`,
-                        transformOrigin: 'center',
                         backgroundColor: textBoxStyles?.backgroundColor,
                       }}
                       onClick={(event) => {
@@ -186,16 +188,12 @@ export default function OverlayCanvas({
                   )
                 ) : (
                   <img
-                    ref={(node) => {
-                      overlayElementRefs.current[overlay.id] = node;
-                    }}
                     src={overlay.image}
                     alt={`오버레이 ${index + 1}`}
                     className="object-cover rounded-md shadow-md pointer-events-none"
                     style={{
                       width: (overlay.baseWidth * overlay.scalePercent) / 100,
                       height: (overlay.baseHeight * overlay.scalePercent) / 100,
-                      transform: `rotate(${overlay.rotation ?? 0}deg)`,
                     }}
                     draggable={false}
                   />
