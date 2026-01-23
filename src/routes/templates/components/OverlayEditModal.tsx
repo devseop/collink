@@ -76,19 +76,16 @@ export default function OverlayEditModal({
   }, [selectedTextOverlay, editingOverlayId]);
 
   return (
-    <div
-      className={`z-50 transition-[bottom] duration-200 w-full ${
-        isTextModalFloating
-          ? 'fixed left-1/2 -translate-x-1/2 rounded-2xl bg-white shadow-lg w-[min(92vw,420px)]'
-          : 'fixed left-0 right-0 bg-white backdrop-blur-sm border-t border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] max-h-[70vh] overflow-y-auto overscroll-contain'
-      }`}
-      style={{
-        bottom: isTextModalFloating ? '2.5rem' : editingOverlayId ? `${keyboardInset + 16}px` : '0px',
-      }}
-      onMouseDown={(event) => event.stopPropagation()}
-      onTouchStart={(event) => event.stopPropagation()}
-    >
+    <>
       {selectedImageOverlay && (
+        <div
+          className="fixed left-0 right-0 z-50 w-full bg-white backdrop-blur-sm border-t border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] max-h-[70vh] overflow-y-auto overscroll-contain transition-[bottom] duration-200"
+          style={{
+            bottom: editingOverlayId ? `${keyboardInset + 16}px` : '0px',
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+        >
         <div className="flex flex-col gap-5 mb-6">
           <div className="flex items-center justify-between border-b border-[#d3d3d3] px-4 py-5">
             <p className="text-lg font-semibold text-[#222222] leading-none text-left">스티커 설정</p>
@@ -178,10 +175,19 @@ export default function OverlayEditModal({
             추가하기
           </button>
         </div>
+        </div>
       )}
 
       {selectedTextOverlay && !editingOverlayId && (
-        <div className="flex flex-col gap-3 px-4 h-14 items-center justify-center">
+        <div
+          className="fixed left-1/2 -translate-x-1/2 z-50 w-fit max-w-[92vw] rounded-2xl bg-white shadow-lg transition-[bottom] duration-200"
+          style={{
+            bottom: isTextModalFloating ? '2.5rem' : `${keyboardInset + 16}px`,
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+        >
+          <div className="flex flex-col gap-3 px-4 h-14 items-center justify-center">
           {/* 순서 UI */}
           {/* <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-[#101010]">순서</p>
@@ -273,6 +279,7 @@ export default function OverlayEditModal({
             </div>
           )}
         </div>
+        </div>
       )}
       {isFontMenuOpen && selectedTextOverlay && !editingOverlayId && (
         <div className="fixed left-1/2 -translate-x-1/2 bottom-[calc(2.5rem+32px)] z-50 w-fit">
@@ -299,6 +306,6 @@ export default function OverlayEditModal({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
