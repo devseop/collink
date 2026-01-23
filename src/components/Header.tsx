@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type ComponentType, useEffect, useState } from 'react';
 import ReactModal from 'react-modal';
 import IconArrowLeft from '../assets/icons/ic_arrow_left.svg?react';
 
@@ -19,6 +19,7 @@ type HeaderProps = {
 if (typeof document !== 'undefined') {
   ReactModal.setAppElement('#root');
 }
+const Modal = ReactModal as unknown as ComponentType<ReactModal.Props>;
 
 const Header = ({
   useConfirmOnBack = false,
@@ -76,7 +77,7 @@ const Header = ({
       </div>
 
       {useConfirmOnBack && (
-        <ReactModal
+        <Modal
           isOpen={isModalOpen}
           onRequestClose={handleCancel}
           className="fixed left-1/2 top-1/2 w-[320px] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white px-6 shadow-xl outline-none"
@@ -105,7 +106,7 @@ const Header = ({
               </button>
             </div>
           </div>
-        </ReactModal>
+        </Modal>
       )}
     </>
   );
