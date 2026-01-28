@@ -1,6 +1,6 @@
-import { type ComponentType, useEffect, useState } from 'react';
-import ReactModal from 'react-modal';
+import { useState } from 'react';
 import IconArrowLeft from '../assets/icons/ic_arrow_left.svg?react';
+import ConfirmModal from './ConfirmModal';
 
 type HeaderProps = {
   useConfirmOnBack?: boolean;
@@ -15,12 +15,6 @@ type HeaderProps = {
   };
 };
 
-// Register once for accessibility
-if (typeof document !== 'undefined') {
-  ReactModal.setAppElement('#root');
-}
-const Modal = ReactModal as unknown as ComponentType<ReactModal.Props>;
-
 const Header = ({
   useConfirmOnBack = false,
   confirmTitle = '이전으로 돌아갈까요?',
@@ -29,12 +23,6 @@ const Header = ({
   rightAction,
 }: HeaderProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (typeof document !== 'undefined') {
-      ReactModal.setAppElement('#root');
-    }
-  }, []);
 
   const handleGoBack = () => {
     if (useConfirmOnBack) {
@@ -77,36 +65,15 @@ const Header = ({
       </div>
 
       {useConfirmOnBack && (
-        <Modal
+        <ConfirmModal
           isOpen={isModalOpen}
-          onRequestClose={handleCancel}
-          className="fixed left-1/2 top-1/2 w-[320px] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white px-6 shadow-xl outline-none"
-          overlayClassName="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
-          closeTimeoutMS={120}
-        >
-          <div className="flex flex-col gap-4 pt-6">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold text-[#1F1F1F] text-center">{confirmTitle}</h2>
-              <p className="text-sm text-[#4B4B4B] leading-relaxed text-center">{confirmMessage}</p>
-            </div>
-            <div className="flex flex-col justify-between">
-              <button
-                type="button"
-                onClick={handleConfirm}
-                className="text-[#FF4322] px-3 py-4 text-[14px] font-semibold"
-              >
-                돌아가기
-              </button>
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="px-3 py-4 text-[14px] font-regular text-[#1F1F1F]"
-              >
-                계속 수정하기
-              </button>
-            </div>
-          </div>
-        </Modal>
+          title={confirmTitle}
+          message={confirmMessage}
+          confirmLabel="돌아가기"
+          cancelLabel="계속 수정하기"
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+        />
       )}
     </>
   );

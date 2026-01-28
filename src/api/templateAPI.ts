@@ -170,6 +170,16 @@ export type PublicTemplate = {
   animationType?: 'default' | 'spread' | 'collage';
 };
 
+export type UserTemplateSummary = {
+  id: string;
+  userId: string;
+  thumbnailUrl?: string;
+  isPublished?: boolean;
+  category?: Category | null;
+  animationType?: 'default' | 'spread' | 'collage';
+  createdAt?: string;
+};
+
 export async function getPublishedTemplateByUser(
   userId: string
 ): Promise<PublicTemplate | null> {
@@ -245,4 +255,67 @@ export async function getPublishedTemplateByUser(
     isPublished: data.is_published ?? undefined,
     category: data.category ?? undefined,
   };
+}
+
+export async function getTemplatesByUserId(userId: string): Promise<UserTemplateSummary[]> {
+  const { data, error } = await supabase
+    .from('custom_templates')
+    .select('id, user_id, template_thumbnail, is_published, created_at, category, animation_type')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .returns<CustomTemplateRow[]>();
+
+  if (error) {
+    throw new Error(`Failed to fetch user templates: ${error?.message ?? 'Unknown error'}`);
+  }
+
+  return (data ?? []).map((template) => ({
+    id: template.id,
+    userId: template.user_id,
+    thumbnailUrl: template.template_thumbnail ?? undefined,
+    isPublished: template.is_published ?? undefined,
+    category: template.category ?? undefined,
+    animationType: template.animation_type ?? 'default',
+    createdAt: template.created_at ?? undefined,
+  }));
+}
+
+export async function deleteTemplateById(templateId: string) {
+  const { error: itemsError } = await supabase
+    .from('custom_template_items')
+    .delete()
+    .eq('template_id', templateId);
+
+  if (itemsError) {
+    throw new Error(`Failed to delete template items: ${itemsError?.message ?? 'Unknown error'}`);
+  }
+
+  const { error } = await supabase
+    .from('custom_templates')
+    .delete()
+    .eq('id', templateId);
+
+  if (error) {
+    throw new Error(`Failed to delete template: ${error?.message ?? 'Unknown error'}`);
+  }
+}
+
+export async function publishTemplateById(userId: string, templateId: string) {
+  const { error: unpublishError } = await supabase
+    .from('custom_templates')
+    .update({ is_published: false })
+    .eq('user_id', userId);
+
+  if (unpublishError) {
+    throw new Error(`Failed to unpublish templates: ${unpublishError?.message ?? 'Unknown error'}`);
+  }
+
+  const { error } = await supabase
+    .from('custom_templates')
+    .update({ is_published: true })
+    .eq('id', templateId);
+
+  if (error) {
+    throw new Error(`Failed to publish template: ${error?.message ?? 'Unknown error'}`);
+  }
 }
