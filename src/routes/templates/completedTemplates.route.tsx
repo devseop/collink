@@ -23,7 +23,7 @@ const completedTemplatesRoute = createRoute({
     const handleGoToProfile = useCallback(() => {
       if (!user) return;
 
-      router.navigate({ to: `/users/${user.id}/profile` });
+      router.navigate({ to: `/users/${user.id}/profile`, search: {} });
     }, [user]);
 
     const handleGoToLink = useCallback(() => {

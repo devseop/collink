@@ -91,14 +91,14 @@ const selectTemplatesRoute = createRoute({
       const selectedTemplate = templates[activeIndex];
       if (!selectedTemplate) return;
       setSelectedTemplate(selectedTemplate);
-      router.navigate({ to: '/templates/edit' });
+      router.navigate({ to: '/templates/edit', search: { templateId: undefined } });
     };
 
     return (
       <div className="flex flex-col gap-[48px] w-full">
       {/* header */}
       <div className='flex justify-end px-5 py-4'>
-        <button onClick={() => router.navigate({ to: '/templates/edit' })}>
+        <button onClick={() => router.navigate({ to: '/templates/edit', search: { templateId: undefined } })}>
           건너뛰기
         </button>
       </div>

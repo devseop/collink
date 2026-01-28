@@ -15,7 +15,7 @@ const signInRoute = createRoute({
 
     return (
       <div className="flex flex-col px-5 h-full bg-[#C7F9A5]">
-        <button onClick={() => navigate({ to: '/' })}>
+        <button onClick={() => navigate({ to: '/', search: {} })}>
         <IconLogo className="w-16 h-16" aria-hidden />
         </button>
         <div className="flex flex-col items-center justify-center pt-20">

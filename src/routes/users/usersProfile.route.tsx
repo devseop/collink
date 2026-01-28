@@ -55,7 +55,7 @@ const usersProfileRoute = createRoute({
     }, [user?.id]);
 
     const handleGoToNewTemplate = () => {
-      navigate({ to: '/templates/edit', search: { templateId: '' } });
+      navigate({ to: '/templates/edit', search: { templateId: undefined } });
     };
 
     const handleEditTemplate = (templateId: string) => {

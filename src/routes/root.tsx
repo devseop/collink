@@ -20,6 +20,7 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
       throw redirect({
         to: '/signIn',
         replace: true,
+        search: {},
       });
     }
   },
@@ -30,7 +31,6 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
 
 export type { RouterContext };
 export default rootRoute;
-
 
 
 

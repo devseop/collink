@@ -151,7 +151,7 @@ const publicTemplateRoute = createRoute({
     return (
       <div className="relative min-h-screen w-full overflow-hidden bg-[#000]">
         <div className="fixed p-5 z-50 w-full flex justify-between">
-          <button onClick={() => navigate({ to: '/' })} className='w-10 h-10 bg-white/70 rounded-full flex items-center justify-center'>
+          <button onClick={() => navigate({ to: '/', search: {} })} className='w-10 h-10 bg-white/70 rounded-full flex items-center justify-center'>
             <IconHome className="w-[22px] h-[22px] text-black" />
           </button>
           <button onClick={() => setShowLinkList((prev) => !prev)} className='w-10 h-10 bg-white/70 rounded-full flex items-center justify-center'>

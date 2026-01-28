@@ -16,6 +16,7 @@ const userSetUsernameRoute = createRoute({
       throw redirect({
         to: '/signIn',
         replace: true,
+        search: {},
       });
     }
 
@@ -24,6 +25,7 @@ const userSetUsernameRoute = createRoute({
         to: '/users/$userId/setUsername',
         params: { userId: session.user.id },
         replace: true,
+        search: { toast: undefined },
       });
     }
 
@@ -38,6 +40,7 @@ const userSetUsernameRoute = createRoute({
         to: '/users/$userId/profile',
         params: { userId: session.user.id },
         replace: true,
+        search: { toast: undefined },
       });
     }
 
@@ -110,7 +113,7 @@ const userSetUsernameRoute = createRoute({
 
         try {
           await updateUsername(userId, trimmed);
-          await navigate({ to: '/', replace: true });
+          await navigate({ to: '/', replace: true, search: {} });
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Username 저장에 실패했습니다.';
           setErrorMessage(message);

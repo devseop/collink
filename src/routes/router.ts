@@ -22,6 +22,12 @@ const routerTree = rootRoute.addChildren([
 
 const router = createRouter({
   routeTree: routerTree,
+  context: {
+    auth: {
+      user: null,
+      isLoading: true,
+    },
+  },
 });
 
 declare module '@tanstack/react-router' {

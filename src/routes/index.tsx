@@ -16,6 +16,7 @@ const indexRoute = createRoute({
     throw redirect({
       to: '/signIn',
       replace: true,
+      search: {},
     });
   }
 
@@ -30,6 +31,7 @@ const indexRoute = createRoute({
       to: '/users/$userId/setUsername',
       params: { userId: session.user.id },
       replace: true,
+      search: {},
     });
   }
 
@@ -37,6 +39,7 @@ const indexRoute = createRoute({
     to: '/users/$userId/profile',
     params: { userId: session.user.id },
     replace: true,
+    search: { toast: undefined },
   });
  },
  component:  function IndexPage() {
