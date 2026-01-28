@@ -1,4 +1,4 @@
-import type { DefaultTemplate } from '../types/templates';
+import type { DefaultTemplate, Template } from '../types/templates';
 import type { Overlay } from '../types/overlay';
 import { computeBaseDimensions, DEFAULT_IMAGE_SIZE, IMAGE_SCALE_PERCENT_MIN } from './overlayMath';
 import {
@@ -24,7 +24,7 @@ const deriveScalePercentFromSize = (width: number, height: number) => {
   return Math.max(IMAGE_SCALE_PERCENT_MIN, Math.round(rawPercent));
 };
 
-export const mapTemplateToEditorState = (template: DefaultTemplate | null): EditorInitialState => {
+export const mapTemplateToEditorState = (template: DefaultTemplate | Template | null): EditorInitialState => {
   if (!template) {
     return {
       backgroundImageUrl: null,

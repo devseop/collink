@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import type { DefaultTemplate, TemplateItem, Category } from '../types/templates';
+import type { DefaultTemplate, TemplateItem, Category, UserTemplate } from '../types/templates';
 
 type DefaultTemplateRow = {
   id: string;
@@ -82,6 +82,19 @@ export type CustomTemplatePayload = {
   animationType?: 'default' | 'spread' | 'collage';
 };
 
+export type UpdateCustomTemplatePayload = {
+  userId: string;
+  templateId: string;
+  backgroundImageUrl?: string;
+  backgroundColor?: string;
+  isBackgroundColored?: boolean;
+  thumbnailUrl?: string;
+  items: TemplateItem[];
+  isPublished?: boolean;
+  category?: Category | null;
+  animationType?: 'default' | 'spread' | 'collage';
+};
+
 const getTextDecorationValue = (options?: { underline?: boolean; strikethrough?: boolean }) => {
   const parts = [];
   if (options?.underline) parts.push('underline');
@@ -157,6 +170,70 @@ export async function createCustomTemplate(payload: CustomTemplatePayload) {
   return data;
 }
 
+export async function updateCustomTemplate(payload: UpdateCustomTemplatePayload) {
+  const { error } = await supabase
+    .from('custom_templates')
+    .update({
+      background_image_url: payload.backgroundImageUrl ?? null,
+      background_color: payload.backgroundColor ?? null,
+      is_background_colored: payload.isBackgroundColored ?? false,
+      template_thumbnail: payload.thumbnailUrl ?? null,
+      is_published: payload.isPublished ?? false,
+      category: payload.category ?? null,
+      animation_type: payload.animationType ?? 'default',
+    })
+    .eq('id', payload.templateId)
+    .eq('user_id', payload.userId);
+
+  if (error) {
+    throw new Error(`Failed to update custom template: ${error?.message ?? 'Unknown error'}`);
+  }
+
+  const { error: deleteItemsError } = await supabase
+    .from('custom_template_items')
+    .delete()
+    .eq('template_id', payload.templateId);
+
+  if (deleteItemsError) {
+    throw new Error(`Failed to delete template items: ${deleteItemsError?.message ?? 'Unknown error'}`);
+  }
+
+  if (payload.items?.length) {
+    const itemsToInsert = payload.items.map((item, index) => ({
+      template_id: payload.templateId,
+      type: item.imageUrl ? 'image' : 'text',
+      pos_x: item.coordinates?.x ?? 0,
+      pos_y: item.coordinates?.y ?? 0,
+      rotation: item.rotation ?? 0,
+      order_index: item.index ?? index,
+      image_url: item.imageUrl ?? null,
+      width: item.size?.width ?? null,
+      height: item.size?.height ?? null,
+      scale_percent: item.scalePercent ?? null,
+      text_content: item.text ?? null,
+      font_size: item.font?.size ?? null,
+      font_weight: item.font?.weight ?? null,
+      font_family: item.font?.family ?? null,
+      font_color: item.font?.color ?? null,
+      link_url: item.linkUrl ?? null,
+      link_description: item.linkDescription ?? null,
+      has_link: item.hasLink ?? null,
+      text_decoration: getTextDecorationValue({
+        underline: item.font?.decoration?.includes('underline'),
+        strikethrough: item.font?.decoration?.includes('line-through'),
+      }),
+    }));
+
+    const { error: insertItemsError } = await supabase
+      .from('custom_template_items')
+      .insert(itemsToInsert);
+
+    if (insertItemsError) {
+      throw new Error(`Failed to update template items: ${insertItemsError?.message ?? 'Unknown error'}`);
+    }
+  }
+}
+
 export type PublicTemplate = {
   id: string;
   userId: string;
@@ -190,6 +267,78 @@ export async function getPublishedTemplateByUser(
     .eq('is_published', true)
     .order('created_at', { ascending: false })
     .limit(1)
+    .maybeSingle<CustomTemplateRow>();
+
+  if (error) {
+    throw new Error(`Failed to fetch custom template: ${error?.message ?? 'Unknown error'}`);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const { data: itemsData, error: itemsError } = await supabase
+    .from('custom_template_items')
+    .select('*')
+    .eq('template_id', data.id)
+    .order('order_index', { ascending: true });
+
+  if (itemsError) {
+    throw new Error(`Failed to fetch template items: ${itemsError?.message ?? 'Unknown error'}`);
+  }
+
+  const items: TemplateItem[] = (itemsData ?? []).map((item: CustomTemplateItemRow) => ({
+    imageUrl: item.image_url ?? undefined,
+    text: item.text_content ?? undefined,
+    hasLink: item.has_link ?? undefined,
+    linkUrl: item.link_url ?? undefined,
+    linkDescription: item.link_description ?? undefined,
+    index: item.order_index ?? undefined,
+    coordinates: { x: item.pos_x ?? 0, y: item.pos_y ?? 0 },
+    size:
+      item.width != null && item.height != null
+        ? {
+            width: item.width,
+            height: item.height,
+          }
+        : undefined,
+    scalePercent: item.scale_percent ?? undefined,
+    font: item.type === 'text'
+      ? {
+          size: item.font_size ?? 18,
+          weight: item.font_weight ?? 600,
+          color: item.font_color ?? '#000000',
+          family: item.font_family ?? 'classic',
+          decoration: item.text_decoration as
+            | 'underline'
+            | 'line-through'
+            | 'none'
+            | 'underline line-through'
+            | undefined,
+        }
+      : undefined,
+    rotation: item.rotation ?? 0,
+  }));
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    backgroundImageUrl: data.background_image_url ?? undefined,
+    backgroundColor: data.background_color ?? undefined,
+    isBackgroundColored: data.is_background_colored ?? undefined,
+    thumbnailUrl: data.template_thumbnail ?? undefined,
+    animationType: data.animation_type ?? 'default',
+    items,
+    isPublished: data.is_published ?? undefined,
+    category: data.category ?? undefined,
+  };
+}
+
+export async function getTemplateById(templateId: string): Promise<UserTemplate | null> {
+  const { data, error } = await supabase
+    .from('custom_templates')
+    .select('id, user_id, background_image_url, background_color, is_background_colored, template_thumbnail, is_published, category, animation_type')
+    .eq('id', templateId)
     .maybeSingle<CustomTemplateRow>();
 
   if (error) {

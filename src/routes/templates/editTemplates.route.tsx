@@ -1,6 +1,7 @@
 import { createRoute } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import templatesRoute from './templates.route';
 import { useOverlayEditor, IMAGE_SCALE_PERCENT_MIN } from '../../hooks/overlay/useOverlayEditor';
 import type { Overlay } from '../../types/overlay';
@@ -11,13 +12,14 @@ import { useTemplateEditorStore, type TemplateEditorSnapshot } from '../../store
 import { IMAGE_SCALE_DEFAULT_PERCENT } from '../../constants/templates';
 import Header from '../../components/Header';
 import { uploadTemplateAsset, uploadTemplateThumbnail } from '../../api/storageAPI';
-import { createCustomTemplate } from '../../api/templateAPI';
+import { createCustomTemplate, updateCustomTemplate } from '../../api/templateAPI';
 import EmptyState from './components/EmptyState';
 import OverlayCanvas from './components/OverlayCanvas';
 import OverlayEditModal from './components/OverlayEditModal';
 import BackgroundOptionsModal from './components/BackgroundOptionsModal';
 import OverlayNavBar from './components/OverlayNavBar';
 import { useOverlaySelectionState } from '../../hooks/templates/useOverlaySelectionState';
+import { useGetTemplateById } from '../../hooks/templates/useGetTemplateById';
 import { mapOverlayToTemplateItem, mapTemplateToEditorState } from '../../utils/editorOverlayMapper';
 import AnimationSelector from './components/AnimationSelector';
 import { safeRandomUUID } from '../../utils/random';
@@ -161,21 +163,31 @@ const overlaysEqual = (a: Overlay[], b: Overlay[]) => {
 const editTemplatesRoute = createRoute({
   path: 'edit',
   getParentRoute: () => templatesRoute,
+  validateSearch: (search: Record<string, unknown>) => ({
+    templateId: typeof search.templateId === 'string' ? search.templateId : undefined,
+  }),
   component: function EditTemplatesPage() {
+    const { templateId } = editTemplatesRoute.useSearch();
     const selectedTemplate = useTemplateSelectionStore((state) => state.selectedTemplate);
+    const queryClient = useQueryClient();
     const replaceDraft = useTemplateEditorStore((state) => state.replaceDraft);
     const commitDraft = useTemplateEditorStore((state) => state.commitDraft);
     const resetAll = useTemplateEditorStore((state) => state.resetAll);
     const draftSnapshot = useTemplateEditorStore((state) => state.draft);
     const committedSnapshot = useTemplateEditorStore((state) => state.committed);
     const initialSnapshotRef = useRef<TemplateEditorSnapshot | null>(null);
+    const { data: editingTemplate, isLoading: isEditingTemplateLoading } = useGetTemplateById(templateId);
     const captureRef = useRef<HTMLDivElement | null>(null);
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
     const [backgroundOptionsSource, setBackgroundOptionsSource] = useState<'empty' | 'navbar' | null>(null);
     const initialAnimationType = useMemo<AnimationType>(
-      () => (committedSnapshot?.animationType as AnimationType | undefined) ?? (draftSnapshot?.animationType as AnimationType | undefined) ?? 'default',
-      [committedSnapshot, draftSnapshot]
+      () =>
+        (committedSnapshot?.animationType as AnimationType | undefined) ??
+        (draftSnapshot?.animationType as AnimationType | undefined) ??
+        (templateId ? (editingTemplate?.animationType as AnimationType | undefined) : undefined) ??
+        'default',
+      [committedSnapshot, draftSnapshot, templateId, editingTemplate?.animationType]
     );
     const [animationType, setAnimationType] = useState<AnimationType>(initialAnimationType);
     const [animationPreviewType, setAnimationPreviewType] = useState<AnimationType>(initialAnimationType);
@@ -211,8 +223,11 @@ const editTemplatesRoute = createRoute({
           overlays: draftSnapshot!.overlays.map((overlay) => ({ ...overlay })),
         };
       }
+      if (templateId) {
+        return mapTemplateToEditorState(editingTemplate ?? null);
+      }
       return mapTemplateToEditorState(selectedTemplate);
-    }, [committedSnapshot, draftSnapshot, selectedTemplate]);
+    }, [committedSnapshot, draftSnapshot, selectedTemplate, templateId, editingTemplate]);
 
     const { user } = useAuth();
     const {
@@ -255,8 +270,13 @@ const editTemplatesRoute = createRoute({
     const isEmptyState = !previewImage && !isBackgroundColored && overlays.length === 0;
     const showBackgroundToggle = backgroundOptionsSource === 'navbar';
     const colorPickerValue = backgroundColor ?? '#FFFFFF';
+
+    useEffect(() => {
+      initialSnapshotRef.current = null;
+    }, [templateId]);
     
     useEffect(() => {
+      if (templateId && isEditingTemplateLoading) return;
       if (initialSnapshotRef.current) return;
       initialSnapshotRef.current = {
         backgroundImageUrl: previewImage,
@@ -266,7 +286,7 @@ const editTemplatesRoute = createRoute({
         overlays: overlays.map((overlay) => ({ ...overlay })),
         animationType,
       };
-    }, [backgroundColor, backgroundFile, isBackgroundColored, overlays, previewImage, animationType]);
+    }, [backgroundColor, backgroundFile, isBackgroundColored, overlays, previewImage, animationType, templateId, isEditingTemplateLoading]);
 
     useEffect(() => {
       loadFonts(FONT_OPTIONS).catch(() => {});
@@ -300,6 +320,14 @@ const editTemplatesRoute = createRoute({
     useEffect(() => {
       setAnimationPreviewType(animationType);
     }, [animationType]);
+
+    if (templateId && !isEditingTemplateLoading && !editingTemplate) {
+      return (
+        <div className="flex h-full items-center justify-center text-sm text-slate-500">
+          404 not found
+        </div>
+      );
+    }
 
     useEffect(() => {
       const updateCenter = () => {
@@ -375,6 +403,11 @@ const editTemplatesRoute = createRoute({
         setDidSave(false);
         return;
       }
+      if (templateId && !editingTemplate) {
+        setSaveError('편집할 템플릿을 찾을 수 없어요.');
+        setDidSave(false);
+        return;
+      }
 
       if (overlays.length === 0) {
         setSaveError('최소 한 개 이상의 요소를 추가해주세요.');
@@ -395,8 +428,9 @@ const editTemplatesRoute = createRoute({
           animationType,
         };
 
-        replaceDraft(snapshot, selectedTemplate?.id ?? null);
-        commitDraft(selectedTemplate?.id ?? null);
+        const sourceTemplateId = templateId ?? selectedTemplate?.id ?? null;
+        replaceDraft(snapshot, sourceTemplateId);
+        commitDraft(sourceTemplateId);
 
         let thumbnailUrl: string | undefined;
         
@@ -446,22 +480,46 @@ const editTemplatesRoute = createRoute({
           })
         );
 
-        const customTemplateId = safeRandomUUID();
-        await createCustomTemplate({
-          customTemplateId,
-          userId: user.id,
-          backgroundImageUrl,
-          backgroundColor: shouldUseColor ? backgroundColor ?? undefined : undefined,
-          isBackgroundColored: shouldUseColor,
-          thumbnailUrl,
-          items,
-          isPublished: true,
-          animationType,
-        });
-
-        setDidSave(true);
-        resetAll();
-        router.navigate({ to: '/templates/completed' });
+        if (templateId) {
+          await updateCustomTemplate({
+            templateId,
+            userId: user.id,
+            backgroundImageUrl,
+            backgroundColor: shouldUseColor ? backgroundColor ?? undefined : undefined,
+            isBackgroundColored: shouldUseColor,
+            thumbnailUrl,
+            items,
+            isPublished: editingTemplate?.isPublished ?? false,
+            animationType,
+            category: editingTemplate?.category ?? undefined,
+          });
+          await queryClient.invalidateQueries({ queryKey: ['templatesByUser', user.id] });
+          await queryClient.invalidateQueries({ queryKey: ['publishedTemplate', user.id] });
+          setDidSave(true);
+          resetAll();
+          router.navigate({
+            to: '/users/$userId/profile',
+            params: { userId: user.id },
+            search: { toast: 'updated' },
+            replace: true,
+          });
+        } else {
+          const customTemplateId = safeRandomUUID();
+          await createCustomTemplate({
+            customTemplateId,
+            userId: user.id,
+            backgroundImageUrl,
+            backgroundColor: shouldUseColor ? backgroundColor ?? undefined : undefined,
+            isBackgroundColored: shouldUseColor,
+            thumbnailUrl,
+            items,
+            isPublished: true,
+            animationType,
+          });
+          setDidSave(true);
+          resetAll();
+          router.navigate({ to: '/templates/completed', search: { mode: 'create' } });
+        }
       } catch (error) {
         setDidSave(false);
         setSaveError(error instanceof Error ? error.message : '템플릿 저장에 실패했습니다.');
@@ -476,6 +534,9 @@ const editTemplatesRoute = createRoute({
       isBackgroundColored,
       backgroundColor,
       animationType,
+      templateId,
+      editingTemplate,
+      queryClient,
       setSelectedImageId,
       setSelectedTextId,
       replaceDraft,

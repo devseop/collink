@@ -11,7 +11,11 @@ import { useGetPublishedTemplateByUser } from '../../hooks/templates/useGetPubli
 const completedTemplatesRoute = createRoute({
   path: 'completed',
   getParentRoute: () => templatesRoute,
+  validateSearch: (search: Record<string, unknown>) => ({
+    mode: search.mode === 'edit' ? 'edit' : 'create',
+  }),
   component: function CompletedTemplatesPage() {
+    const { mode } = completedTemplatesRoute.useSearch();
     const { user } = useAuth();
     const { data: profile } = useGetProfile(user?.id ?? '');
     const { data: template } = useGetPublishedTemplateByUser(user?.id ?? '');
@@ -31,7 +35,9 @@ const completedTemplatesRoute = createRoute({
     return (
       <div className="flex flex-col w-full">
         <div className="flex flex-col gap-3 mt-[76px] mb-[48px]">
-          <p className="text-[32px] font-extrabold text-center">좋아요!</p>
+          <p className="text-[24px] font-extrabold text-center">
+            {mode === 'edit' ? '템플릿이 업데이트되었습니다' : '템플릿이 생성되었습니다'}
+          </p>
           <div>
             <p className="text-[15px] font-medium text-[#757575] text-center">끝은 곧 새로운 시작이죠</p>
             <p className="text-[15px] font-medium text-[#757575] text-center">계속 해서 발전시켜 나가보세요</p>

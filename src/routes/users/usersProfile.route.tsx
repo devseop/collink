@@ -17,7 +17,12 @@ import ConfirmModal from '../../components/ConfirmModal';
 const usersProfileRoute = createRoute({
   path: '$userId/profile',
   getParentRoute: () => usersRoute,
+  validateSearch: (search: Record<string, unknown>) => ({
+    toast: typeof search.toast === 'string' ? search.toast : undefined,
+  }),
   component: function UsersProfilePage() {
+    const { toast } = usersProfileRoute.useSearch();
+    const { userId } = usersProfileRoute.useParams();
     const { user } = useAuth();
     const navigate = useNavigate();
     const { data: profile } = useGetProfile(user?.id ?? '');
@@ -31,6 +36,7 @@ const usersProfileRoute = createRoute({
       type: 'delete' | 'publish';
       templateId: string;
     }>(null);
+    const [showToast, setShowToast] = useState(false);
     const lastConfirmActionRef = useRef<{
       type: 'delete' | 'publish';
       templateId: string;
@@ -49,12 +55,11 @@ const usersProfileRoute = createRoute({
     }, [user?.id]);
 
     const handleGoToNewTemplate = () => {
-      navigate({ to: '/templates/edit' });
+      navigate({ to: '/templates/edit', search: { templateId: '' } });
     };
 
     const handleEditTemplate = (templateId: string) => {
-      // TODO: wire templateId into editor selection/state if needed
-      navigate({ to: '/templates/edit' });
+      navigate({ to: '/templates/edit', search: { templateId } });
     };
 
     const handleDeleteTemplate = (templateId: string) => {
@@ -93,6 +98,21 @@ const usersProfileRoute = createRoute({
       document.addEventListener('mousedown', handleOutsideClick);
       return () => document.removeEventListener('mousedown', handleOutsideClick);
     }, [openMenuId]);
+
+    useEffect(() => {
+      if (toast !== 'updated') return;
+      setShowToast(true);
+      const timeout = window.setTimeout(() => {
+        setShowToast(false);
+        navigate({
+          to: '/users/$userId/profile',
+          params: { userId },
+          search: { toast: 'updated' },
+          replace: true,
+        });
+      }, 2000);
+      return () => window.clearTimeout(timeout);
+    }, [toast, navigate, userId]);
 
     return (
       <div className="flex flex-col gap-8 mt-1">
@@ -201,6 +221,11 @@ const usersProfileRoute = createRoute({
             onConfirm={handleConfirmAction}
             onCancel={handleCancelAction}
           />
+        )}
+        {showToast && (
+          <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#222222] px-4 py-2 text-[14px] text-white shadow-lg">
+            템플릿이 업데이트되었습니다
+          </div>
         )}
       </div>
     );
