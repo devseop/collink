@@ -16,6 +16,14 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
       return;
     }
 
+    if (location.pathname.startsWith('/')) {
+      const trimmed = location.pathname.replace(/^\/+|\/+$/g, '');
+
+      if (trimmed && !trimmed.startsWith('users') && !trimmed.startsWith('templates')) {
+        return;
+      }
+    }
+
     if (!context.auth.user) {
       throw redirect({
         to: '/signIn',
@@ -24,6 +32,7 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
       });
     }
   },
+
   component: () => {
     return <Outlet />;
   },
@@ -31,7 +40,6 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
 
 export type { RouterContext };
 export default rootRoute;
-
 
 
 
