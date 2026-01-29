@@ -8,7 +8,7 @@ type RouterContext = {
   };
 };
 
-const publicRoutes = new Set(['/signIn']);
+const publicRoutes = new Set(['/logIn', '/signUp']);
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   beforeLoad: ({ location, context }) => {
@@ -26,9 +26,8 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
 
     if (!context.auth.user) {
       throw redirect({
-        to: '/signIn',
+        to: '/logIn',
         replace: true,
-        search: {},
       });
     }
   },

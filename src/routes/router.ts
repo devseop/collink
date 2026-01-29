@@ -1,6 +1,7 @@
 import { createRouter } from '@tanstack/react-router';
 import rootRoute from './root';
-import signInRoute from './signIn';
+import logInRoute from './logIn';
+import signUpRoute from './signUp';
 import indexRoute from './index';
 import usersRoute from './users/users.route';
 import userSetUsernameRoute from './users/userSetUsername.route';
@@ -13,7 +14,8 @@ import completedTemplatesRoute from './templates/completedTemplates.route';
 
 const routerTree = rootRoute.addChildren([
   indexRoute,
-  signInRoute,
+  logInRoute,
+  signUpRoute,
   publicTemplateRoute,
   usersRoute.addChildren([userSetUsernameRoute, usersProfileRoute]),
   templatesRoute.addChildren([selectTemplatesRoute, editTemplatesRoute]),

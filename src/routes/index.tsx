@@ -14,9 +14,8 @@ const indexRoute = createRoute({
 
   if (error || !session) {
     throw redirect({
-      to: '/signIn',
+      to: '/logIn',
       replace: true,
-      search: {},
     });
   }
 
@@ -31,7 +30,6 @@ const indexRoute = createRoute({
       to: '/users/$userId/setUsername',
       params: { userId: session.user.id },
       replace: true,
-      search: {},
     });
   }
 
