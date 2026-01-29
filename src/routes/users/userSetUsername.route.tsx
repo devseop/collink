@@ -14,9 +14,8 @@ const userSetUsernameRoute = createRoute({
 
     if (!session) {
       throw redirect({
-        to: '/signIn',
+        to: '/signUp',
         replace: true,
-        search: {},
       });
     }
 
