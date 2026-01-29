@@ -17,8 +17,8 @@ const logInRoute = createRoute({
 
     return (
       <div className="flex flex-col px-5 h-full">
-        <button onClick={() => navigate({ to: '/', search: {} })}>
-        <IconLogo className="w-16 h-16" aria-hidden />
+        <button className="w-full flex items-center justify-center mt-8" onClick={() => navigate({ to: '/', search: {} })}>
+          <IconLogo className="w-fit h-8" aria-hidden />
         </button>
         <div className="flex flex-col items-center justify-center pt-[140px]">
           <img src={ImageWelcomeBack} alt="Welcome Back" className="max-w-[320px] max-h-[240px] object-cover mb-6" />
