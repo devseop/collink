@@ -33,6 +33,13 @@ const indexRoute = createRoute({
     });
   }
 
+  if (!profile.isUserVisited) {
+    throw redirect({
+      to: '/onboarding',
+      replace: true,
+    });
+  }
+
   throw redirect({
     to: '/users/$userId/profile',
     params: { userId: session.user.id },

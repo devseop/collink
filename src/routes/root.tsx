@@ -9,6 +9,15 @@ type RouterContext = {
 };
 
 const publicRoutes = new Set(['/logIn', '/signUp']);
+const reservedPublicSegments = new Set(['logIn', 'signUp', 'onboarding', 'users', 'templates']);
+
+const isPublicTemplatePath = (pathname: string) => {
+  const trimmed = pathname.replace(/^\/+|\/+$/g, '');
+  if (!trimmed) return false;
+  if (trimmed.includes('/')) return false;
+  if (reservedPublicSegments.has(trimmed)) return false;
+  return true;
+};
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   beforeLoad: ({ location, context }) => {
@@ -16,12 +25,8 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
       return;
     }
 
-    if (location.pathname.startsWith('/')) {
-      const trimmed = location.pathname.replace(/^\/+|\/+$/g, '');
-
-      if (trimmed && !trimmed.startsWith('users') && !trimmed.startsWith('templates')) {
-        return;
-      }
+    if (isPublicTemplatePath(location.pathname)) {
+      return;
     }
 
     if (!context.auth.user) {
@@ -39,7 +44,6 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
 
 export type { RouterContext };
 export default rootRoute;
-
 
 
 
