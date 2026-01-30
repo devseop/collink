@@ -67,6 +67,7 @@ const onboardingRoute = createRoute({
 
     const handleFinish = async () => {
       if (!user?.id) return;
+
       await updateIsUserVisited(user.id, true);
       navigate({ to: '/templates/edit', search: { templateId: undefined } });
     };
@@ -105,6 +106,13 @@ const onboardingRoute = createRoute({
       setIsDragging(false);
     };
 
+    const handleSkip = async () => {
+      if (!user?.id) return;
+      
+      await updateIsUserVisited(user.id, true);
+      navigate({ to: `/users/${user.id}/profile`, replace: true, search: { toast: undefined } });
+    };
+
     return (
       <div className="flex flex-col h-full pt-6">
         <div className="flex items-center justify-between px-5">
@@ -117,7 +125,7 @@ const onboardingRoute = createRoute({
             ))}
           </div>
           {!isLastStep && (
-            <button className="text-sm font-medium" onClick={handleFinish}>
+            <button className="text-sm font-medium" onClick={handleSkip}>
               건너뛰기
             </button>
           )}
