@@ -266,6 +266,7 @@ const editTemplatesRoute = createRoute({
       initialBackgroundColor: initialEditorState.backgroundColor,
       initialIsBackgroundColored: initialEditorState.isBackgroundColored,
       initialOverlays: initialEditorState.overlays,
+      getContainerRect: () => captureRef.current?.getBoundingClientRect() ?? null,
     });
     const isEmptyState = !previewImage && !isBackgroundColored && overlays.length === 0;
     const showBackgroundToggle = backgroundOptionsSource === 'navbar';
@@ -330,16 +331,24 @@ const editTemplatesRoute = createRoute({
     }
 
     useEffect(() => {
-      const updateCenter = () => {
-        if (typeof window === 'undefined') return;
-        setViewportCenter({
-          x: window.innerWidth / 2,
-          y: window.innerHeight / 2,
-        });
+      if (typeof window === 'undefined') return;
+      const node = captureRef.current;
+      const updateFromRect = (rect: DOMRectReadOnly) => {
+        setViewportCenter({ x: rect.width / 2, y: rect.height / 2 });
       };
-      updateCenter();
-      window.addEventListener('resize', updateCenter);
-      return () => window.removeEventListener('resize', updateCenter);
+
+      if (!node) {
+        setViewportCenter({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+        return;
+      }
+
+      updateFromRect(node.getBoundingClientRect());
+      const observer = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (entry) updateFromRect(entry.contentRect);
+      });
+      observer.observe(node);
+      return () => observer.disconnect();
     }, []);
 
     const triggerAnimationPreview = useCallback((nextType?: AnimationType) => {
@@ -479,6 +488,9 @@ const editTemplatesRoute = createRoute({
             return mapOverlayToTemplateItem(overlay, index);
           })
         );
+        const canvasRect = captureRef.current?.getBoundingClientRect();
+        const canvasWidth = Math.round(canvasRect?.width ?? window.innerWidth);
+        const canvasHeight = Math.round(canvasRect?.height ?? window.innerHeight);
 
         if (templateId) {
           await updateCustomTemplate({
@@ -492,6 +504,8 @@ const editTemplatesRoute = createRoute({
             isPublished: editingTemplate?.isPublished ?? false,
             animationType,
             category: editingTemplate?.category ?? undefined,
+            canvasWidth,
+            canvasHeight,
           });
           await queryClient.invalidateQueries({ queryKey: ['templatesByUser', user.id] });
           await queryClient.invalidateQueries({ queryKey: ['publishedTemplate', user.id] });
@@ -515,6 +529,8 @@ const editTemplatesRoute = createRoute({
             items,
             isPublished: true,
             animationType,
+            canvasWidth,
+            canvasHeight,
           });
           setDidSave(true);
           resetAll();

@@ -1,14 +1,17 @@
 import { createRoute, useNavigate } from '@tanstack/react-router';
 import rootRoute from './root';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { mapTemplateItemsToRender, type MappedTemplateItem } from '../utils/templateRender';
 import { DEFAULT_TEXT_FONT_FAMILY, DEFAULT_TEXT_FONT_SIZE, DEFAULT_TEXT_FONT_WEIGHT } from '../constants/templates';
 import { useGetPublishedTemplateByUser } from '../hooks/templates/useGetPublishedTemplateByUser';
 import { useGetProfileByUsername } from '../hooks/users/useGetProfile';
-import IconHome from '../assets/icons/ic_home.svg?react';
+import IconHome from '../assets/icons/ic_home_filled.svg?react';
 import IconList from '../assets/icons/ic_list.svg?react';
 
 type AnimationType = 'default' | 'spread' | 'collage';
+
+const DEFAULT_CANVAS_WIDTH = 390;
+const DEFAULT_CANVAS_HEIGHT = 844;
 
 const getTextDecorationValue = (decoration?: string | null) => {
   if (!decoration || decoration === 'none') return 'none';
@@ -50,19 +53,31 @@ const publicTemplateRoute = createRoute({
     const [animationType, setAnimationType] = useState<AnimationType>('default');
     const [isAnimationActive, setIsAnimationActive] = useState(false);
     const [viewportCenter, setViewportCenter] = useState({ x: 0, y: 0 });
+    const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
     const [showLinkList, setShowLinkList] = useState(false);
+    const containerRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-      const updateCenter = () => {
-        if (typeof window === 'undefined') return;
-        setViewportCenter({
-          x: window.innerWidth / 2,
-          y: window.innerHeight / 2,
-        });
+      if (typeof window === 'undefined') return;
+      const node = containerRef.current;
+      const updateFromRect = (rect: DOMRectReadOnly) => {
+        setViewportCenter({ x: rect.width / 2, y: rect.height / 2 });
+        setViewportSize({ width: rect.width, height: rect.height });
       };
-      updateCenter();
-      window.addEventListener('resize', updateCenter);
-      return () => window.removeEventListener('resize', updateCenter);
+
+      if (!node) {
+        setViewportCenter({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+        setViewportSize({ width: window.innerWidth, height: window.innerHeight });
+        return;
+      }
+
+      updateFromRect(node.getBoundingClientRect());
+      const observer = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (entry) updateFromRect(entry.contentRect);
+      });
+      observer.observe(node);
+      return () => observer.disconnect();
     }, []);
 
     useEffect(() => {
@@ -73,21 +88,38 @@ const publicTemplateRoute = createRoute({
       requestAnimationFrame(() => requestAnimationFrame(() => setIsAnimationActive(true)));
     }, [template?.animationType, template?.items]);
 
+    const { canvasScale, canvasOffsetX, canvasOffsetY } = useMemo(() => {
+      const baseWidth = template?.canvasWidth ?? DEFAULT_CANVAS_WIDTH;
+      const baseHeight = template?.canvasHeight ?? DEFAULT_CANVAS_HEIGHT;
+      const viewportWidth = viewportSize.width || baseWidth;
+      const viewportHeight = viewportSize.height || baseHeight;
+      const safeBaseWidth = baseWidth || DEFAULT_CANVAS_WIDTH;
+      const safeBaseHeight = baseHeight || DEFAULT_CANVAS_HEIGHT;
+      const scale = Math.min(viewportWidth / safeBaseWidth, viewportHeight / safeBaseHeight);
+      return {
+        canvasScale: Number.isFinite(scale) ? scale : 1,
+        canvasOffsetX: (viewportWidth - safeBaseWidth * scale) / 2,
+        canvasOffsetY: (viewportHeight - safeBaseHeight * scale) / 2,
+      };
+    }, [template?.canvasWidth, template?.canvasHeight, viewportSize.height, viewportSize.width]);
+
     const computePositionStyle = useCallback(
       (item: ReturnType<typeof mapTemplateItemsToRender>[number], index: number) => {
         const rotation = item.style.rotation ?? 0;
         const baseScale = item.type === 'text' ? (item.style.scalePercent ?? 100) / 100 : 1;
+        const scaledLeft = canvasOffsetX + item.style.left * canvasScale;
+        const scaledTop = canvasOffsetY + item.style.top * canvasScale;
         const targetBase = {
-          left: `${item.style.left}px`,
-          top: `${item.style.top}px`,
+          left: `${scaledLeft}px`,
+          top: `${scaledTop}px`,
           opacity: 1,
           transform: `scale(${baseScale}) rotate(${rotation}deg)`,
         };
         const sizeStyle =
           item.type === 'image'
             ? {
-                width: item.style.width ? `${item.style.width}px` : undefined,
-                height: item.style.height ? `${item.style.height}px` : undefined,
+                width: item.style.width ? `${item.style.width * canvasScale}px` : undefined,
+                height: item.style.height ? `${item.style.height * canvasScale}px` : undefined,
               }
             : {};
 
@@ -122,7 +154,15 @@ const publicTemplateRoute = createRoute({
         }
         return { ...targetBase, ...sizeStyle, transition };
       },
-      [animationType, isAnimationActive, viewportCenter.x, viewportCenter.y]
+      [
+        animationType,
+        canvasOffsetX,
+        canvasOffsetY,
+        canvasScale,
+        isAnimationActive,
+        viewportCenter.x,
+        viewportCenter.y,
+      ]
     );
 
     const renderedItems = useMemo(() => mapTemplateItemsToRender(template?.items ?? []), [template?.items]);
@@ -149,7 +189,7 @@ const publicTemplateRoute = createRoute({
     }
 
     return (
-      <div className="relative min-h-screen w-full overflow-hidden bg-[#000]">
+      <div ref={containerRef} className="relative min-h-screen w-full overflow-hidden bg-[#000]">
         <div className="fixed p-5 z-50 w-full flex justify-between">
           <button onClick={() => navigate({ to: '/', search: {} })} className='w-10 h-10 bg-white/70 rounded-full flex items-center justify-center'>
             <IconHome className="w-[22px] h-[22px] text-black" />
@@ -228,7 +268,7 @@ const publicTemplateRoute = createRoute({
                       className="absolute text-center"
                       style={{
                         ...positionStyle,
-                        fontSize: `${item.font?.size ?? DEFAULT_TEXT_FONT_SIZE}px`,
+                        fontSize: `${(item.font?.size ?? DEFAULT_TEXT_FONT_SIZE) * canvasScale}px`,
                         fontWeight: item.font?.weight ?? DEFAULT_TEXT_FONT_WEIGHT,
                         color: item.font?.color ?? '#FFFFFF',
                         fontFamily: item.font?.family ?? DEFAULT_TEXT_FONT_FAMILY,

@@ -6,11 +6,25 @@ type UseOverlayDragOptions = {
   overlays: Overlay[];
   editingOverlayId: string | null;
   setOverlays: Dispatch<SetStateAction<Overlay[]>>;
+  getContainerRect?: () => DOMRect | null;
 };
 
-export function useOverlayDrag({ overlays, editingOverlayId, setOverlays }: UseOverlayDragOptions) {
+export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getContainerRect }: UseOverlayDragOptions) {
   const draggingOverlayId = useRef<string | null>(null);
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const getPointerPosition = useCallback(
+    (clientX: number, clientY: number) => {
+      const rect = getContainerRect?.();
+      if (!rect) {
+        return { x: clientX, y: clientY };
+      }
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+      };
+    },
+    [getContainerRect]
+  );
 
   const startDrag = useCallback(
     (overlayId: string, pointerX: number, pointerY: number) => {
@@ -51,7 +65,8 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays }: UseO
     const handleMouseMove = (event: MouseEvent) => {
       if (!draggingOverlayId.current) return;
       event.preventDefault();
-      updateOverlayPosition(event.clientX, event.clientY);
+      const point = getPointerPosition(event.clientX, event.clientY);
+      updateOverlayPosition(point.x, point.y);
     };
 
     const handleMouseUp = () => {
@@ -63,7 +78,8 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays }: UseO
       if (!draggingOverlayId.current) return;
       const touch = event.touches[0];
       if (!touch) return;
-      updateOverlayPosition(touch.clientX, touch.clientY);
+      const point = getPointerPosition(touch.clientX, touch.clientY);
+      updateOverlayPosition(point.x, point.y);
     };
 
     const handleTouchEnd = () => {
@@ -82,23 +98,25 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays }: UseO
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [stopDrag, updateOverlayPosition]);
+  }, [getPointerPosition, stopDrag, updateOverlayPosition]);
 
   const handleOverlayMouseDown = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>, overlayId: string) => {
       event.preventDefault();
-      startDrag(overlayId, event.clientX, event.clientY);
+      const point = getPointerPosition(event.clientX, event.clientY);
+      startDrag(overlayId, point.x, point.y);
     },
-    [startDrag]
+    [getPointerPosition, startDrag]
   );
 
   const handleOverlayTouchStart = useCallback(
     (event: ReactTouchEvent<HTMLDivElement>, overlayId: string) => {
       const touch = event.touches[0];
       if (!touch) return;
-      startDrag(overlayId, touch.clientX, touch.clientY);
+      const point = getPointerPosition(touch.clientX, touch.clientY);
+      startDrag(overlayId, point.x, point.y);
     },
-    [startDrag]
+    [getPointerPosition, startDrag]
   );
 
   return {

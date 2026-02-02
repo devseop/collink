@@ -106,7 +106,7 @@ export default function OverlayCanvas({
         return (
           <div
             key={overlay.id}
-            className={`fixed z-20 touch-none ${isSelected ? 'p-2' : ''}`}
+            className={`absolute z-20 touch-none ${isSelected ? 'p-2' : ''}`}
             style={{ ...positionStyle, touchAction: 'none' }}
             onMouseDown={!isEditing ? (event) => handleOverlayMouseDown(event, overlay.id) : undefined}
             onTouchStart={!isEditing ? (event) => handleOverlayTouchStart(event, overlay.id) : undefined}

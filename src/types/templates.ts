@@ -41,6 +41,8 @@ export type DefaultTemplate = {
   isBackgroundColored?: boolean;
   backgroundColor?: string;
   animationType?: 'default' | 'spread' | 'collage';
+  canvasWidth?: number;
+  canvasHeight?: number;
 };
 
 export type UserTemplate = {
@@ -54,6 +56,8 @@ export type UserTemplate = {
   backgroundColor?: string;
   isPublished?: boolean;
   animationType?: 'default' | 'spread' | 'collage';
+  canvasWidth?: number;
+  canvasHeight?: number;
 };
 
 export type Template = DefaultTemplate | UserTemplate;

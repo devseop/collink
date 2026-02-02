@@ -42,6 +42,8 @@ type CustomTemplateRow = {
   is_published?: boolean | null;
   category?: Category | null;
   animation_type?: 'default' | 'spread' | 'collage' | null;
+  canvas_width?: number | null;
+  canvas_height?: number | null;
 };
 
 type CustomTemplateItemRow = {
@@ -80,6 +82,8 @@ export type CustomTemplatePayload = {
   sourceTemplateId?: string | null;
   category?: Category | null;
   animationType?: 'default' | 'spread' | 'collage';
+  canvasWidth?: number;
+  canvasHeight?: number;
 };
 
 export type UpdateCustomTemplatePayload = {
@@ -93,6 +97,8 @@ export type UpdateCustomTemplatePayload = {
   isPublished?: boolean;
   category?: Category | null;
   animationType?: 'default' | 'spread' | 'collage';
+  canvasWidth?: number;
+  canvasHeight?: number;
 };
 
 const getTextDecorationValue = (options?: { underline?: boolean; strikethrough?: boolean }) => {
@@ -124,6 +130,8 @@ export async function createCustomTemplate(payload: CustomTemplatePayload) {
       is_published: payload.isPublished ?? false,
       category: payload.category ?? null,
       animation_type: payload.animationType ?? 'default',
+      canvas_width: payload.canvasWidth ?? null,
+      canvas_height: payload.canvasHeight ?? null,
     })
     .select('id')
     .single();
@@ -181,6 +189,8 @@ export async function updateCustomTemplate(payload: UpdateCustomTemplatePayload)
       is_published: payload.isPublished ?? false,
       category: payload.category ?? null,
       animation_type: payload.animationType ?? 'default',
+      canvas_width: payload.canvasWidth ?? null,
+      canvas_height: payload.canvasHeight ?? null,
     })
     .eq('id', payload.templateId)
     .eq('user_id', payload.userId);
@@ -245,6 +255,8 @@ export type PublicTemplate = {
   isPublished?: boolean;
   category?: Category | null;
   animationType?: 'default' | 'spread' | 'collage';
+  canvasWidth?: number;
+  canvasHeight?: number;
 };
 
 export type UserTemplateSummary = {
@@ -262,7 +274,7 @@ export async function getPublishedTemplateByUser(
 ): Promise<PublicTemplate | null> {
   const { data, error } = await supabase
     .from('custom_templates')
-    .select('id, user_id, background_image_url, background_color, is_background_colored, template_thumbnail, is_published, category, animation_type')
+    .select('id, user_id, background_image_url, background_color, is_background_colored, template_thumbnail, is_published, category, animation_type, canvas_width, canvas_height')
     .eq('user_id', userId)
     .eq('is_published', true)
     .order('created_at', { ascending: false })
@@ -331,13 +343,15 @@ export async function getPublishedTemplateByUser(
     items,
     isPublished: data.is_published ?? undefined,
     category: data.category ?? undefined,
+    canvasWidth: data.canvas_width ?? undefined,
+    canvasHeight: data.canvas_height ?? undefined,
   };
 }
 
 export async function getTemplateById(templateId: string): Promise<UserTemplate | null> {
   const { data, error } = await supabase
     .from('custom_templates')
-    .select('id, user_id, background_image_url, background_color, is_background_colored, template_thumbnail, is_published, category, animation_type')
+    .select('id, user_id, background_image_url, background_color, is_background_colored, template_thumbnail, is_published, category, animation_type, canvas_width, canvas_height')
     .eq('id', templateId)
     .maybeSingle<CustomTemplateRow>();
 
@@ -403,6 +417,8 @@ export async function getTemplateById(templateId: string): Promise<UserTemplate 
     items,
     isPublished: data.is_published ?? undefined,
     category: data.category ?? undefined,
+    canvasWidth: data.canvas_width ?? undefined,
+    canvasHeight: data.canvas_height ?? undefined,
   };
 }
 

@@ -11,6 +11,7 @@ type UseOverlayEditorOptions = {
   initialBackgroundColor?: string | null;
   initialOverlays?: Overlay[];
   initialIsBackgroundColored?: boolean;
+  getContainerRect?: () => DOMRect | null;
 };
 
 const DEFAULT_MAX_OVERLAYS = 5;
@@ -22,6 +23,7 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
     initialBackgroundColor,
     initialIsBackgroundColored,
     initialOverlays,
+    getContainerRect,
   } = options;
 
   const [previewImage, setPreviewImage] = useState<string | null>(initialBackgroundImageUrl ?? null);
@@ -136,6 +138,7 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
     overlays,
     editingOverlayId,
     setOverlays,
+    getContainerRect,
   });
 
   const resetBackgroundImage = useCallback(() => {
