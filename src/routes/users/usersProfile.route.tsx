@@ -6,7 +6,7 @@ import { useGetTemplatesByUserId } from '../../hooks/templates/useGetTemplatesBy
 import { useDeleteTemplateById } from '../../hooks/templates/useDeleteTemplateById';
 import { usePublishTemplateById } from '../../hooks/templates/usePublishTemplateById';
 // import IconBell from '../../assets/icons/ic_bell.svg?react';
-import IconSettings from '../../assets/icons/ic_setting.svg?react';
+import IconSettings from '../../assets/icons/ic_settings_stroke.svg?react';
 import IconMoreStroke from '../../assets/icons/ic_more_stroke.svg?react';
 import IconAdd from '../../assets/icons/ic_add_stroke.svg?react';
 import { useCallback, useEffect, useRef, useState } from 'react';

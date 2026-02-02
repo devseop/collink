@@ -6,7 +6,7 @@ import { DEFAULT_TEXT_FONT_FAMILY, DEFAULT_TEXT_FONT_SIZE, DEFAULT_TEXT_FONT_WEI
 import { useGetPublishedTemplateByUser } from '../hooks/templates/useGetPublishedTemplateByUser';
 import { useGetProfileByUsername } from '../hooks/users/useGetProfile';
 import IconHome from '../assets/icons/ic_home_filled.svg?react';
-import IconList from '../assets/icons/ic_list.svg?react';
+import IconList from '../assets/icons/ic_listed_stroke.svg?react';
 
 type AnimationType = 'default' | 'spread' | 'collage';
 
