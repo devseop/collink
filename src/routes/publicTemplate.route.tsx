@@ -89,25 +89,28 @@ const publicTemplateRoute = createRoute({
     }, [template?.animationType, template?.items]);
 
     useEffect(() => {
-      const bodyStyle = document.body.style;
-      const htmlStyle = document.documentElement.style;
-      const prevBodyBackground = bodyStyle.background;
-      const prevHtmlBackground = htmlStyle.background;
+      const body = document.body;
+      const style = body.style;
+      const prevImage = style.getPropertyValue('--app-bg-image');
+      const prevColor = style.getPropertyValue('--app-bg-color');
+
+      body.classList.add('has-global-bg');
 
       if (template?.backgroundImageUrl) {
-        bodyStyle.background = `url("${template.backgroundImageUrl}") center/cover no-repeat fixed`;
-        htmlStyle.background = bodyStyle.background;
+        style.setProperty('--app-bg-image', `url("${template.backgroundImageUrl}")`);
+        style.setProperty('--app-bg-color', 'transparent');
       } else if (template?.isBackgroundColored && template.backgroundColor) {
-        bodyStyle.background = template.backgroundColor;
-        htmlStyle.background = template.backgroundColor;
+        style.setProperty('--app-bg-image', 'none');
+        style.setProperty('--app-bg-color', template.backgroundColor);
       } else {
-        bodyStyle.background = '#ffffff';
-        htmlStyle.background = '#ffffff';
+        style.setProperty('--app-bg-image', 'none');
+        style.setProperty('--app-bg-color', '#ffffff');
       }
 
       return () => {
-        bodyStyle.background = prevBodyBackground;
-        htmlStyle.background = prevHtmlBackground;
+        style.setProperty('--app-bg-image', prevImage);
+        style.setProperty('--app-bg-color', prevColor);
+        body.classList.remove('has-global-bg');
       };
     }, [template?.backgroundColor, template?.backgroundImageUrl, template?.isBackgroundColored]);
 
@@ -212,22 +215,7 @@ const publicTemplateRoute = createRoute({
     }
 
     return (
-      <div ref={containerRef} className="fixed inset-0 w-full overflow-hidden bg-[#000]">
-        <div
-          className="fixed inset-0 -z-10"
-          style={
-            template?.backgroundImageUrl
-              ? {
-                  backgroundImage: `url("${template.backgroundImageUrl}")`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat',
-                }
-              : template?.isBackgroundColored && template.backgroundColor
-                ? { backgroundColor: template.backgroundColor }
-                : { backgroundColor: '#ffffff' }
-          }
-        />
+      <div ref={containerRef} className="fixed inset-0 w-full overflow-hidden bg-transparent">
         <div className="fixed p-5 z-50 w-full flex justify-between">
           <button onClick={() => navigate({ to: '/', search: {} })} className='w-10 h-10 bg-white/70 rounded-full flex items-center justify-center'>
             <IconHome className="w-[22px] h-[22px] text-black" />
