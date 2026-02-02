@@ -322,29 +322,6 @@ const editTemplatesRoute = createRoute({
       setAnimationPreviewType(animationType);
     }, [animationType]);
 
-    useEffect(() => {
-      const bodyStyle = document.body.style;
-      const htmlStyle = document.documentElement.style;
-      const prevBodyBackground = bodyStyle.background;
-      const prevHtmlBackground = htmlStyle.background;
-
-      if (previewImage) {
-        bodyStyle.background = `url("${previewImage}") center/cover no-repeat fixed`;
-        htmlStyle.background = bodyStyle.background;
-      } else if (isBackgroundColored && backgroundColor) {
-        bodyStyle.background = backgroundColor;
-        htmlStyle.background = backgroundColor;
-      } else {
-        bodyStyle.background = '#ffffff';
-        htmlStyle.background = '#ffffff';
-      }
-
-      return () => {
-        bodyStyle.background = prevBodyBackground;
-        htmlStyle.background = prevHtmlBackground;
-      };
-    }, [backgroundColor, isBackgroundColored, previewImage]);
-
     if (templateId && !isEditingTemplateLoading && !editingTemplate) {
       return (
         <div className="flex h-full items-center justify-center text-sm text-slate-500">
@@ -735,25 +712,10 @@ const editTemplatesRoute = createRoute({
 
   return (
       <div
-        className="fixed inset-0 w-full overflow-hidden"
+        className="relative w-full h-[100dvh] overflow-hidden"
         onMouseDown={handleBackgroundPointerDown}
         onTouchStart={handleBackgroundPointerDown}
       >
-        <div
-          className="fixed inset-0 -z-10"
-          style={
-            previewImage
-              ? {
-                  backgroundImage: `url("${previewImage}")`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat',
-                }
-              : isBackgroundColored && backgroundColor
-                ? { backgroundColor }
-                : { backgroundColor: '#ffffff' }
-          }
-        />
         <Header
           useConfirmOnBack={hasChanges}
           rightAction={{
@@ -763,6 +725,17 @@ const editTemplatesRoute = createRoute({
           }}
         />
         <div ref={captureRef} className="absolute inset-0">
+          {previewImage && (
+            <div className="absolute inset-0 z-0">
+              <img src={previewImage} alt="미리보기" className="w-full h-full object-cover" />
+            </div>
+          )}
+          {!previewImage && isBackgroundColored && backgroundColor && (
+            <div
+              className="absolute inset-0 z-0"
+              style={{ backgroundColor }}
+            />
+          )}
 
           {isEmptyState && (
             <EmptyState
