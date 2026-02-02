@@ -323,28 +323,25 @@ const editTemplatesRoute = createRoute({
     }, [animationType]);
 
     useEffect(() => {
-      const body = document.body;
-      const style = body.style;
-      const prevImage = style.getPropertyValue('--app-bg-image');
-      const prevColor = style.getPropertyValue('--app-bg-color');
-
-      body.classList.add('has-global-bg');
+      const bodyStyle = document.body.style;
+      const htmlStyle = document.documentElement.style;
+      const prevBodyBackground = bodyStyle.background;
+      const prevHtmlBackground = htmlStyle.background;
 
       if (previewImage) {
-        style.setProperty('--app-bg-image', `url("${previewImage}")`);
-        style.setProperty('--app-bg-color', 'transparent');
+        bodyStyle.background = `url("${previewImage}") center/cover no-repeat fixed`;
+        htmlStyle.background = bodyStyle.background;
       } else if (isBackgroundColored && backgroundColor) {
-        style.setProperty('--app-bg-image', 'none');
-        style.setProperty('--app-bg-color', backgroundColor);
+        bodyStyle.background = backgroundColor;
+        htmlStyle.background = backgroundColor;
       } else {
-        style.setProperty('--app-bg-image', 'none');
-        style.setProperty('--app-bg-color', '#ffffff');
+        bodyStyle.background = '#ffffff';
+        htmlStyle.background = '#ffffff';
       }
 
       return () => {
-        style.setProperty('--app-bg-image', prevImage);
-        style.setProperty('--app-bg-color', prevColor);
-        body.classList.remove('has-global-bg');
+        bodyStyle.background = prevBodyBackground;
+        htmlStyle.background = prevHtmlBackground;
       };
     }, [backgroundColor, isBackgroundColored, previewImage]);
 
@@ -742,6 +739,21 @@ const editTemplatesRoute = createRoute({
         onMouseDown={handleBackgroundPointerDown}
         onTouchStart={handleBackgroundPointerDown}
       >
+        <div
+          className="fixed inset-0 -z-10"
+          style={
+            previewImage
+              ? {
+                  backgroundImage: `url("${previewImage}")`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                }
+              : isBackgroundColored && backgroundColor
+                ? { backgroundColor }
+                : { backgroundColor: '#ffffff' }
+          }
+        />
         <Header
           useConfirmOnBack={hasChanges}
           rightAction={{
