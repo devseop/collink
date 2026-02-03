@@ -1,12 +1,15 @@
 import { createRoute, useNavigate } from '@tanstack/react-router';
 import rootRoute from './root';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { Button, TooltipTrigger } from 'react-aria-components';
 import { mapTemplateItemsToRender, type MappedTemplateItem } from '../utils/templateRender';
 import { DEFAULT_TEXT_FONT_FAMILY, DEFAULT_TEXT_FONT_SIZE, DEFAULT_TEXT_FONT_WEIGHT } from '../constants/templates';
 import { useGetPublishedTemplateByUser } from '../hooks/templates/useGetPublishedTemplateByUser';
 import { useGetProfileByUsername } from '../hooks/users/useGetProfile';
 import IconHome from '../assets/icons/ic_home_filled.svg?react';
 import IconList from '../assets/icons/ic_listed_stroke.svg?react';
+import IconLinkWhite from '../assets/icons/ic_link_stroke_white.svg?react';
+import { LinkTooltip } from '../components/Tooltip';
 
 type AnimationType = 'default' | 'spread' | 'collage';
 
@@ -19,12 +22,6 @@ const getTextDecorationValue = (decoration?: string | null) => {
 };
 
 type LinkItem = Extract<MappedTemplateItem, { type: 'image' }>;
-
-const LinkBadge = () => (
-  <span className="absolute -right-2 -bottom-2 h-6 w-6 rounded-full bg-[#222222] text-white text-[10px] flex items-center justify-center shadow-md">
-    링크
-  </span>
-);
 
 const LinkList = ({ items }: { items: LinkItem[] }) => (
   <div className="fixed left-0 right-0 bottom-12 z-40 px-4">
@@ -55,6 +52,7 @@ const publicTemplateRoute = createRoute({
     const [viewportCenter, setViewportCenter] = useState({ x: 0, y: 0 });
     const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
     const [showLinkList, setShowLinkList] = useState(false);
+    const [openLinkKey, setOpenLinkKey] = useState<string | number | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -166,10 +164,16 @@ const publicTemplateRoute = createRoute({
     );
 
     const renderedItems = useMemo(() => mapTemplateItemsToRender(template?.items ?? []), [template?.items]);
+
     const linkItems = useMemo(
       () => renderedItems.filter((item): item is LinkItem => item.type === 'image' && Boolean(item.linkUrl)),
       [renderedItems]
     );
+
+    const openLink = useCallback((url?: string) => {
+      if (!url) return;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }, []);
 
     // todo: loading gif 추가 필요
     if (isLoading) {
@@ -189,7 +193,11 @@ const publicTemplateRoute = createRoute({
     }
 
     return (
-      <div ref={containerRef} className="relative min-h-screen w-full overflow-hidden bg-[#000]">
+      <div
+        ref={containerRef}
+        className="relative min-h-screen w-full overflow-hidden bg-[#000]"
+        onClick={() => setOpenLinkKey(null)}
+      >
         <div className="fixed p-5 z-50 w-full flex justify-between">
           <button onClick={() => navigate({ to: '/', search: {} })} className='w-10 h-10 bg-white/70 rounded-full flex items-center justify-center'>
             <IconHome className="w-[22px] h-[22px] text-black" />
@@ -215,6 +223,7 @@ const publicTemplateRoute = createRoute({
             <div className="absolute inset-0 overflow-hidden">
               {!showLinkList &&
                 renderedItems.map((item, index) => {
+                  const renderKey = `${item.key}-${index}`;
                   const positionStyle = computePositionStyle(item, index);
 
                   if (item.type === 'image') {
@@ -229,34 +238,60 @@ const publicTemplateRoute = createRoute({
                         <img
                           src={item.src}
                           alt="사용자 이미지"
-                          className="w-full h-full object-cover rounded-2xl"
+                          className="w-full h-full object-cover"
                           style={{
                             width: item.style.width ? '100%' : undefined,
                             height: item.style.height ? '100%' : undefined,
                           }}
                           draggable={false}
                         />
-                        {item.linkUrl && <LinkBadge />}
                       </div>
                     );
 
                     if (item.linkUrl) {
+                      const isTooltipOpen = openLinkKey === item.key;
                       return (
-                        <a
-                          key={item.key}
-                          href={item.linkUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="absolute block"
-                          style={imageWrapperStyle}
-                        >
-                          {imageElement}
-                        </a>
+                        <TooltipTrigger key={renderKey} isOpen={isTooltipOpen}>
+                          <Button
+                            className="absolute block"
+                            style={imageWrapperStyle}
+                            onPress={() => {
+                              if (isTooltipOpen) {
+                                openLink(item.linkUrl);
+                                setOpenLinkKey(null);
+                                return;
+                              }
+                              setOpenLinkKey(item.key);
+                            }}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {imageElement}
+                          </Button>
+                          <LinkTooltip
+                            placement="bottom"
+                            offset={10}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openLink(item.linkUrl);
+                              setOpenLinkKey(null);
+                            }}
+                            icon={<IconLinkWhite className="w-[14px] h-[14px] text-white" />}
+                            label={item.linkDescription || item.linkUrl}
+                          />
+                        </TooltipTrigger>
                       );
                     }
 
                     return (
-                      <div key={item.key} className="absolute" style={imageWrapperStyle}>
+                      <div
+                        key={renderKey}
+                        className="absolute"
+                        style={imageWrapperStyle}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setOpenLinkKey(null);
+                        }}
+                      >
                         {imageElement}
                       </div>
                     );
@@ -264,7 +299,7 @@ const publicTemplateRoute = createRoute({
 
                   return (
                     <p
-                      key={item.key}
+                      key={renderKey}
                       className="absolute text-center"
                       style={{
                         ...positionStyle,
@@ -277,6 +312,10 @@ const publicTemplateRoute = createRoute({
                         transformOrigin: 'center',
                         zIndex: item.style.zIndex,
                       }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setOpenLinkKey(null);
+                      }}
                     >
                       {item.text}
                     </p>
@@ -286,9 +325,6 @@ const publicTemplateRoute = createRoute({
             {showLinkList && <LinkList items={linkItems} />}
           </>
         )}
-        <div className='absolute bottom-5 w-full text-center'>
-          <p className='text-black/70 text-xs'>Created by {`${username === 'dress_up' ? 'linkku' : username}`}</p>
-        </div>
       </div>
     );
   },
