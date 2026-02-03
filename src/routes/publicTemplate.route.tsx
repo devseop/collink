@@ -9,6 +9,7 @@ import { useGetProfileByUsername } from '../hooks/users/useGetProfile';
 import { getCurrentHostname, isAuthBypassEnabled } from '../utils/authBypass';
 import IconHome from '../assets/icons/ic_home_filled.svg?react';
 import IconList from '../assets/icons/ic_listed_stroke.svg?react';
+import IconTemplate from '../assets/icons/ic_template_filled.svg?react';
 import IconLinkWhite from '../assets/icons/ic_link_stroke_white.svg?react';
 import { LinkTooltip } from '../components/Tooltip';
 import MockBackground from '../assets/mocking_img.png';
@@ -110,13 +111,12 @@ const LinkList = ({ items }: { items: LinkItem[] }) => (
     data-scroll-lock-ignore
     className="fixed left-0 right-0 bottom-[calc(env(safe-area-inset-bottom)+3rem)] z-40 pl-[calc(env(safe-area-inset-left)+1rem)] pr-[calc(env(safe-area-inset-right)+1rem)]"
   >
-    <div className="bg-white/95 backdrop-blur-sm border border-black/5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] rounded-2xl p-4 flex flex-col gap-3 max-h-[40vh] overflow-auto">
+    <div className="flex flex-col gap-3">
       {items.map((item) => (
-        <div key={item.key} className="flex items-center gap-3 border-b border-black/5 pb-3 last:border-b-0 last:pb-0">
-          <img src={item.src} alt="링크 스티커" className="h-12 w-12 rounded-md object-cover" />
+        <div key={item.key} className="flex flex-row items-center bg-white/70 backdrop-blur-sm p-2 rounded-[2px] justify-center">
+          <img src={item.src} alt="링크 스티커" className="h-12 w-12 rounded-[2px] object-cover" />
           <div className="flex-1">
-            <p className="text-sm text-[#222222] font-medium">{item.linkDescription || '링크 스티커'}</p>
-            <p className="text-xs text-[#6B6B6B] break-all">{item.linkUrl}</p>
+            <p className="text-sm text-[#222222] font-medium truncate text-center">{item.linkDescription || '링크 스티커'}</p>
           </div>
         </div>
       ))}
@@ -321,18 +321,18 @@ const publicTemplateRoute = createRoute({
         onClick={() => setOpenLinkKey(null)}
       >
         <div className="fixed inset-x-0 top-0 z-50 flex justify-between pl-[calc(env(safe-area-inset-left)+1.25rem)] pr-[calc(env(safe-area-inset-right)+1.25rem)] pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-5">
-          <button onClick={() => navigate({ to: '/', search: {} })} className='w-10 h-10 bg-white/70 rounded-full flex items-center justify-center'>
+          <button onClick={() => navigate({ to: '/', search: {} })} className='w-10 h-10 bg-white/70 backdrop-blur-sm rounded-full flex items-center justify-center'>
             <IconHome className="w-[22px] h-[22px] text-black" />
           </button>
-          <button onClick={() => setShowLinkList((prev) => !prev)} className='w-10 h-10 bg-white/70 rounded-full flex items-center justify-center'>
-            <IconList className="w-[22px] h-[22px] text-black" />
+          <button onClick={() => setShowLinkList((prev) => !prev)} className='w-10 h-10 bg-white/70 backdrop-blur-sm rounded-full flex items-center justify-center'>
+            {showLinkList ? <IconTemplate className="w-[22px] h-[22px] text-black" /> : <IconList className="w-[22px] h-[22px] text-black" />}
           </button>
         </div>
         {resolvedTemplate && (
           <>
             {resolvedTemplate.isBackgroundColored && resolvedTemplate.backgroundColor ? (
               <div className="absolute inset-0" style={{ backgroundColor: resolvedTemplate.backgroundColor }} />
-            ) : resolvedTemplate.backgroundImageUrl ? (
+            ) : resolvedTemplate.backgroundImageUrl  ? (
               <img
                 src={resolvedTemplate.backgroundImageUrl}
                 alt="템플릿 배경"
