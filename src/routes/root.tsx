@@ -1,5 +1,6 @@
 import { createRootRouteWithContext, Outlet, redirect } from '@tanstack/react-router';
 import type { User } from '@supabase/supabase-js';
+import { getCurrentHostname, isAuthBypassEnabled } from '../utils/authBypass';
 
 type RouterContext = {
   auth: {
@@ -21,6 +22,10 @@ const isPublicTemplatePath = (pathname: string) => {
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   beforeLoad: ({ location, context }) => {
+    if (isAuthBypassEnabled(getCurrentHostname())) {
+      return;
+    }
+
     if (publicRoutes.has(location.pathname)) {
       return;
     }
@@ -44,7 +49,6 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
 
 export type { RouterContext };
 export default rootRoute;
-
 
 
 

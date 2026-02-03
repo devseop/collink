@@ -2,11 +2,16 @@ import { createRoute, redirect } from '@tanstack/react-router';
 import rootRoute from './root';
 import { supabase } from '../lib/supabaseClient';
 import { createProfile, getProfile } from '../api/profileAPI';
+import { getCurrentHostname, isAuthBypassEnabled } from '../utils/authBypass';
 
 const indexRoute = createRoute({
  path: '/',
  getParentRoute: () => rootRoute,
  beforeLoad: async () => {
+  if (isAuthBypassEnabled(getCurrentHostname())) {
+    return;
+  }
+
   const {
     data: { session },
     error,

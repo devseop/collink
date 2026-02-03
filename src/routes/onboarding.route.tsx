@@ -4,6 +4,7 @@ import rootRoute from './root';
 import { supabase } from '../lib/supabaseClient';
 import { getProfile, updateIsUserVisited } from '../api/profileAPI';
 import { useAuth } from '../hooks/useAuth';
+import { getCurrentHostname, isAuthBypassEnabled } from '../utils/authBypass';
 import ImageOnboardingWelcome from '../assets/illusts/onboarding/onboarding_welcome.png';
 import ImageOnboardingFlexible from '../assets/illusts/onboarding/onboarding_flexible.png';
 import ImageOnboardingConnect from '../assets/illusts/onboarding/onboarding_connect.png';
@@ -12,6 +13,10 @@ const onboardingRoute = createRoute({
   path: '/onboarding',
   getParentRoute: () => rootRoute,
   beforeLoad: async () => {
+    if (isAuthBypassEnabled(getCurrentHostname())) {
+      return;
+    }
+
     const {
       data: { session },
     } = await supabase.auth.getSession();

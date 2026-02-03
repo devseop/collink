@@ -2,12 +2,17 @@ import { createRoute, redirect, useNavigate, useParams } from '@tanstack/react-r
 import { useCallback, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { createProfile, getProfile, updateUsername } from '../../api/profileAPI';
+import { getCurrentHostname, isAuthBypassEnabled } from '../../utils/authBypass';
 import usersRoute from './users.route';
 
 const userSetUsernameRoute = createRoute({
   path: '$userId/setUsername',
   getParentRoute: () => usersRoute,
   loader: async ({ params }) => {
+    if (isAuthBypassEnabled(getCurrentHostname())) {
+      return { id: params.userId, username: undefined };
+    }
+
     const {
       data: { session },
     } = await supabase.auth.getSession();

@@ -178,6 +178,7 @@ const editTemplatesRoute = createRoute({
     const initialSnapshotRef = useRef<TemplateEditorSnapshot | null>(null);
     const { data: editingTemplate, isLoading: isEditingTemplateLoading } = useGetTemplateById(templateId);
     const captureRef = useRef<HTMLDivElement | null>(null);
+    const contentRef = useRef<HTMLDivElement | null>(null);
     const [showBackgroundOptions, setShowBackgroundOptions] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<'image' | 'color'>('image');
     const [backgroundOptionsSource, setBackgroundOptionsSource] = useState<'empty' | 'navbar' | null>(null);
@@ -266,7 +267,7 @@ const editTemplatesRoute = createRoute({
       initialBackgroundColor: initialEditorState.backgroundColor,
       initialIsBackgroundColored: initialEditorState.isBackgroundColored,
       initialOverlays: initialEditorState.overlays,
-      getContainerRect: () => captureRef.current?.getBoundingClientRect() ?? null,
+      getContainerRect: () => contentRef.current?.getBoundingClientRect() ?? null,
     });
     const isEmptyState = !previewImage && !isBackgroundColored && overlays.length === 0;
     const showBackgroundToggle = backgroundOptionsSource === 'navbar';
@@ -332,7 +333,7 @@ const editTemplatesRoute = createRoute({
 
     useEffect(() => {
       if (typeof window === 'undefined') return;
-      const node = captureRef.current;
+      const node = contentRef.current;
       const updateFromRect = (rect: DOMRectReadOnly) => {
         setViewportCenter({ x: rect.width / 2, y: rect.height / 2 });
       };
@@ -724,62 +725,67 @@ const editTemplatesRoute = createRoute({
             disabled: Boolean(editingOverlayId),
           }}
         />
-        <div ref={captureRef} className="absolute inset-0">
+        <div ref={captureRef} className="inset-0 z-0 w-full h-full object-cover">
           {previewImage && (
-            <div className="absolute inset-0 z-0">
+            <div className="inset-0 z-0 w-full h-full object-cover">
               <img src={previewImage} alt="미리보기" className="w-full h-full object-cover" />
             </div>
           )}
           {!previewImage && isBackgroundColored && backgroundColor && (
             <div
-              className="absolute inset-0 z-0"
+              className="inset-0 z-0 w-full h-full object-cover"
               style={{ backgroundColor }}
             />
           )}
 
-          {isEmptyState && (
-            <EmptyState
-              onSelectImage={triggerBackgroundSelect}
-              onSelectColor={() => {
-                setBackgroundOptionsSource('empty');
-                setBackgroundMode('color');
-                setShowBackgroundOptions(true);
-              }}
-            />
-          )}
+          <div
+            ref={contentRef}
+            className="absolute left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-[env(safe-area-inset-top)] bottom-[env(safe-area-inset-bottom)] overflow-hidden"
+          >
+            {isEmptyState && (
+              <EmptyState
+                onSelectImage={triggerBackgroundSelect}
+                onSelectColor={() => {
+                  setBackgroundOptionsSource('empty');
+                  setBackgroundMode('color');
+                  setShowBackgroundOptions(true);
+                }}
+              />
+            )}
 
-          <OverlayCanvas
-            overlays={overlays}
-            selectedImageId={selectedImageId}
-            selectedTextId={selectedTextId}
-            editingOverlayId={editingOverlayId}
-            overlayElementRefs={overlayElementRefs}
-            imageScaleDefaultPercent={IMAGE_SCALE_DEFAULT_PERCENT}
-            animationPreviewType={animationPreviewType}
-            isAnimationPreviewActive={isAnimationPreviewActive}
-            isAnimationPreviewing={isAnimationPreviewing}
-            viewportCenter={viewportCenter}
-            handleOverlayMouseDown={handleOverlayMouseDown}
-            handleOverlayTouchStart={handleOverlayTouchStart}
-            handleTextOverlayTouchStart={handleTextOverlayTouchStart}
-            handleTextOverlayTouchMove={handleTextOverlayTouchMove}
-            handleTextOverlayTouchEnd={handleTextOverlayTouchEnd}
-            updateTextOverlay={updateTextOverlay}
-            startEditingTextOverlay={startEditingTextOverlay}
-            finishEditingTextOverlay={finishEditingTextOverlay}
-            onSelectImage={(overlayId) => {
-              setSelectedImageId(overlayId);
-              setSelectedTextId(null);
-            }}
-            onSelectText={(overlayId) => {
-              setSelectedImageId(null);
-              setSelectedTextId(overlayId);
-            }}
-            handleRemoveOverlayElement={handleRemoveOverlayElement}
-            startTransform={startTransform}
-            getTextDecorationValue={getTextDecorationValue}
-            getTextBoxStyles={getTextBoxStyles}
-          />
+            <OverlayCanvas
+              overlays={overlays}
+              selectedImageId={selectedImageId}
+              selectedTextId={selectedTextId}
+              editingOverlayId={editingOverlayId}
+              overlayElementRefs={overlayElementRefs}
+              imageScaleDefaultPercent={IMAGE_SCALE_DEFAULT_PERCENT}
+              animationPreviewType={animationPreviewType}
+              isAnimationPreviewActive={isAnimationPreviewActive}
+              isAnimationPreviewing={isAnimationPreviewing}
+              viewportCenter={viewportCenter}
+              handleOverlayMouseDown={handleOverlayMouseDown}
+              handleOverlayTouchStart={handleOverlayTouchStart}
+              handleTextOverlayTouchStart={handleTextOverlayTouchStart}
+              handleTextOverlayTouchMove={handleTextOverlayTouchMove}
+              handleTextOverlayTouchEnd={handleTextOverlayTouchEnd}
+              updateTextOverlay={updateTextOverlay}
+              startEditingTextOverlay={startEditingTextOverlay}
+              finishEditingTextOverlay={finishEditingTextOverlay}
+              onSelectImage={(overlayId) => {
+                setSelectedImageId(overlayId);
+                setSelectedTextId(null);
+              }}
+              onSelectText={(overlayId) => {
+                setSelectedImageId(null);
+                setSelectedTextId(overlayId);
+              }}
+              handleRemoveOverlayElement={handleRemoveOverlayElement}
+              startTransform={startTransform}
+              getTextDecorationValue={getTextDecorationValue}
+              getTextBoxStyles={getTextBoxStyles}
+            />
+          </div>
         </div>
 
         <input

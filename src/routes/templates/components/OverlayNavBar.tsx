@@ -26,7 +26,7 @@ export default function OverlayNavBar({
   if (isOverlayFocused || showBackgroundOptions || isEmptyState) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-10 z-50 grid place-items-center">
+    <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] z-50 grid place-items-center">
       <div className="flex gap-2 w-fit px-4 rounded-xl bg-white shadow-lg">
         <NavigationButton onClick={onOpenBackgroundOptions} aria-label="배경 이미지 추가">
           <IconImage className="w-6 h-6 text-[#222222]" aria-hidden />

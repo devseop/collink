@@ -45,7 +45,7 @@ const Header = ({
 
   return (
     <>
-      <div className="fixed top-0 left-0 z-50 w-full p-5 flex items-center justify-between">
+      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-between pl-[calc(env(safe-area-inset-left)+1.25rem)] pr-[calc(env(safe-area-inset-right)+1.25rem)] pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-5">
         <button onClick={handleGoBack} aria-label="이전으로 이동" className="w-10 h-10 bg-white/70 rounded-full backdrop-blur-sm flex items-center justify-center">
           <IconArrowLeft className="w-5 h-5" aria-hidden />
         </button>

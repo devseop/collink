@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../stores/authStore';
+import { getCurrentHostname, isAuthBypassEnabled, previewUser } from '../utils/authBypass';
 import type { Provider } from '@supabase/supabase-js';
 
 export type AuthProvider = Extract<Provider, 'google' | 'apple' | 'kakao'>;
@@ -9,6 +10,12 @@ export function useAuth() {
   const { user, isLoading, setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
+    if (isAuthBypassEnabled(getCurrentHostname())) {
+      setUser(previewUser);
+      setLoading(false);
+      return;
+    }
+
     const syncSession = async () => {
       const {
         data: { session },
@@ -34,11 +41,14 @@ export function useAuth() {
   const signIn = useCallback(
     async (provider: AuthProvider) => {
       setLoading(true);
+      if (isAuthBypassEnabled(getCurrentHostname())) {
+        setLoading(false);
+        return;
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          // redirectTo: 'http://localhost:3000/',
-          redirectTo: window.location.origin
+          redirectTo: window.location.origin,
         },
       });
 
@@ -53,6 +63,10 @@ export function useAuth() {
 
   const signOut = useCallback(async () => {
     setLoading(true);
+    if (isAuthBypassEnabled(getCurrentHostname())) {
+      setLoading(false);
+      return;
+    }
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error(error);
