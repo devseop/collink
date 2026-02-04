@@ -15,7 +15,7 @@ import { LinkTooltip } from '../components/Tooltip';
 import MockBackground from '../assets/mocking_img.png';
 import IconInstagramUrl from '../assets/icons/ic_instagram_stroke.svg?url';
 import IconTiktokUrl from '../assets/icons/ic_tiktok_stroke.svg?url';
-import IconTwitterUrl from '../assets/icons/ic_twitter_filled.svg?url';
+import IconTwitterUrl from '../assets/icons/ic_twitter_stroke.svg?url';
 import type { TemplateItem } from '../types/templates';
 import type { PublicTemplate } from '../api/templateAPI';
 
