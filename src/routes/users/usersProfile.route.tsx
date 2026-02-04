@@ -12,12 +12,16 @@ import {
 import { useGetTemplatesByUserId } from '../../hooks/templates/useGetTemplatesByUserId';
 import { useDeleteTemplateById } from '../../hooks/templates/useDeleteTemplateById';
 import { usePublishTemplateById } from '../../hooks/templates/usePublishTemplateById';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Key } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { Button, Menu, MenuItem, MenuTrigger, Separator } from 'react-aria-components';
 import { formatDate } from '../../utils/formatDate';
 import ConfirmModal from '../../components/ConfirmModal';
+import { Popover } from '../../components/Popover';
 import { SnsSettingsSheet } from '../../components/SnsSettingsSheet';
 import { toastQueue } from '../../components/AppToast';
+
+import type { ProfileLink, ProfileLinkType } from '../../api/profileLinksAPI';
 
 // import IconBell from '../../assets/icons/ic_bell.svg?react';
 import IconSettings from '../../assets/icons/ic_settings_stroke.svg?react';
@@ -28,7 +32,7 @@ import IconTwitter from '../../assets/icons/ic_twitter_stroke.svg?react';
 import IconTiktok from '../../assets/icons/ic_tiktok_stroke.svg?react';
 import IconYoutube from '../../assets/icons/ic_youtube_filled.svg?react';
 import IconMail from '../../assets/icons/ic_mail_stroke.svg?react';
-import type { ProfileLink, ProfileLinkType } from '../../api/profileLinksAPI';
+import IconLogout from '../../assets/icons/ic_logout_stroke_colored.svg?react';
 
 type SnsItem = {
   type: ProfileLinkType;
@@ -79,7 +83,7 @@ const usersProfileRoute = createRoute({
   component: function UsersProfilePage() {
     const { toast } = usersProfileRoute.useSearch();
     const { userId } = usersProfileRoute.useParams();
-    const { user } = useAuth();
+    const { user, signOut } = useAuth();
     const navigate = useNavigate();
     const { data: profile } = useGetProfile(user?.id ?? '');
     const { data: profileLinks = [] } = useGetProfileLinks(user?.id ?? '');
@@ -102,6 +106,7 @@ const usersProfileRoute = createRoute({
       type: 'delete' | 'publish';
       templateId: string;
     } | null>(null);
+    
     const showToast = useCallback((title: string, description?: string) => {
       toastQueue.add({ title, description }, { timeout: 2400 });
     }, []);
@@ -132,17 +137,30 @@ const usersProfileRoute = createRoute({
     const openSnsSheet = () => setIsSnsSheetOpen(true);
     const closeSnsSheet = () => setIsSnsSheetOpen(false);
 
-    // const handleGoToNotifications = useCallback(() => {
-    //   //TODO: add notifications page
-    //   // router.navigate({ to: '/users/$userId/notifications' });
-    //   console.log('go to notifications');
-    // }, [user?.id]);
-
-    const handleGoToSettings = useCallback(() => {
-      //TODO: add settings page
-      // router.navigate({ to: '/users/$userId/settings' });
-      console.log('go to settings');
-    }, [user?.id]);
+    // TODO: 공지사항, 블로그, 피드백 페이지 추가
+    const handleSettingsAction = useCallback(
+      (key: Key) => {
+        switch (key) {
+          case 'notice':
+            // navigate({ to: '/notice' });
+            console.log('notice');
+            break;
+          case 'feedback':
+            // navigate({ to: '/feedback' });
+            console.log('feedback');
+            break;
+          case 'blog':
+            window.open('/blog', '_blank', 'noopener,noreferrer');
+            break;
+          case 'logout':
+          signOut();
+          break;
+          default:
+            break;
+        }
+      },
+      [signOut]
+    );
 
     const handleGoToNewTemplate = () => {
       navigate({ to: '/templates/edit', search: { templateId: undefined } });
@@ -178,7 +196,7 @@ const usersProfileRoute = createRoute({
 
     const handleOpenSnsLink = (type: ProfileLinkType, url: string) => {
       const value = url.trim();
-      
+
       if (!value) return;
 
       switch (type) {
@@ -201,6 +219,35 @@ const usersProfileRoute = createRoute({
           break;
       }
     };
+
+    const renderSnsButtons = () => (
+      <div className="flex flex-row gap-1 items-center">
+        {visibleSns.map((sns) => {
+          const isDisabled = !sns.link?.url || !sns.link.isActive;
+          const disabledClassName = isDisabled && 'opacity-20 cursor-not-allowed';
+
+          return (
+            <button
+              key={sns.type}
+              type="button"
+              className={`p-1 ${disabledClassName}`}
+              disabled={isDisabled}
+              onClick={() => {
+                handleOpenSnsLink(sns.type, sns.link?.url ?? '');
+              }}
+            >
+              {sns.icon}
+            </button>
+          );
+        })}
+        <button
+          onClick={openSnsSheet}
+          className="m-1 p-1 bg-[#E5E5E5] rounded-full flex items-center justify-center"
+        >
+          <IconAdd className="w-4 h-4" aria-hidden />
+        </button>
+      </div>
+    );
 
     const handleCancelAction = () => setConfirmAction(null);
 
@@ -237,31 +284,49 @@ const usersProfileRoute = createRoute({
                 <p className="text-sm text-[#6e6e6e]">linkku.us/{username}</p>
               </div>
             </div>
-            <button onClick={handleGoToSettings}>
-              <IconSettings className="w-6 h-6" aria-hidden />
-            </button>
-          </div>
-        <div className="flex flex-row gap-1 items-center">
-            {visibleSns.map((sns) => {
-              const isDisabled = !sns.link?.url || !sns.link.isActive;
-              return (
-                <button
-                  key={sns.type}
-                  type="button"
-                  className={isDisabled ? 'opacity-20 cursor-not-allowed' : ''}
-                  disabled={isDisabled}
-                  onClick={() => {
-                    handleOpenSnsLink(sns.type, sns.link?.url ?? '');
-                  }}
+            <MenuTrigger>
+              <Button
+                aria-label="설정"
+                className="flex items-center justify-center rounded-full p-1 outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+              >
+                <IconSettings className="w-6 h-6" aria-hidden />
+              </Button>
+              <Popover className="mr-2 w-[160px] rounded-xl bg-white shadow-lg">
+                <Menu
+                  className="flex flex-col outline-none"
+                  onAction={handleSettingsAction}
                 >
-                  {sns.icon}
-                </button>
-              );
-            })}
-            <button onClick={openSnsSheet} className='m-1 p-1 bg-[#E5E5E5] rounded-full flex items-center justify-center'>
-              <IconAdd className="w-4 h-4" aria-hidden />
-            </button>
+                  {/* <MenuItem
+                    id="notice"
+                    className="cursor-pointer rounded-lg px-5 py-3 text-sm font-medium outline-none data-[focused]:bg-[#F5F5F5]"
+                  >
+                    공지사항
+                  </MenuItem>
+                  <MenuItem
+                    id="blog"
+                    className="cursor-pointer rounded-lg px-5 py-3 text-sm font-medium outline-none data-[focused]:bg-[#F5F5F5]"
+                  >
+                    블로그
+                  </MenuItem>
+                  <MenuItem
+                    id="feedback"
+                    className="cursor-pointer rounded-lg px-5 py-3 text-sm font-medium outline-none data-[focused]:bg-[#F5F5F5]"
+                  >
+                    의견 남기기
+                  </MenuItem>
+                  <Separator className="bg-[#E9E9E9] h-[1px]" /> */}
+                  <MenuItem
+                    id="logout"
+                    className="flex flex-row gap-2 items-center cursor-pointer rounded-lg px-5 py-3 outline-none data-[focused]:bg-[#FFF1F0]"
+                  >
+                    <IconLogout className="w-5 h-5 text-[#FC4346]" aria-hidden />
+                    <span className="text-sm font-medium text-[#FC4346]">로그아웃</span>
+                  </MenuItem>
+                </Menu>
+              </Popover>
+            </MenuTrigger>
           </div>
+        {renderSnsButtons()}
         </div>
         <button className="w-full rounded-xl flex flex-row gap-2 px-4 py-3 bg-[#B1FF8D] items-center justify-center" onClick={handleGoToNewTemplate}>
           <IconAdd className="w-5 h-5" aria-hidden />
