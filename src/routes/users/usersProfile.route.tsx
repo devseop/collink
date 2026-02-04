@@ -2,7 +2,13 @@ import { createRoute } from '@tanstack/react-router';
 import usersRoute from './users.route';
 import { useAuth } from '../../hooks/useAuth';
 import { useGetProfile } from '../../hooks/users/useGetProfile';
-import { useGetProfileLinks, useUpdateProfileLinkActive } from '../../hooks/users/useProfileLinks';
+import {
+  useCreateProfileLink,
+  useDeleteProfileLink,
+  useGetProfileLinks,
+  useUpdateProfileLinkActive,
+  useUpdateProfileLinkUrl,
+} from '../../hooks/users/useProfileLinks';
 import { useGetTemplatesByUserId } from '../../hooks/templates/useGetTemplatesByUserId';
 import { useDeleteTemplateById } from '../../hooks/templates/useDeleteTemplateById';
 import { usePublishTemplateById } from '../../hooks/templates/usePublishTemplateById';
@@ -10,7 +16,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { formatDate } from '../../utils/formatDate';
 import ConfirmModal from '../../components/ConfirmModal';
-import { Switch } from 'react-aria-components';
+import { SnsSettingsSheet } from '../../components/SnsSettingsSheet';
+import { toastQueue } from '../../components/AppToast';
 
 // import IconBell from '../../assets/icons/ic_bell.svg?react';
 import IconSettings from '../../assets/icons/ic_settings_stroke.svg?react';
@@ -21,10 +28,6 @@ import IconTwitter from '../../assets/icons/ic_twitter_stroke.svg?react';
 import IconTiktok from '../../assets/icons/ic_tiktok_stroke.svg?react';
 import IconYoutube from '../../assets/icons/ic_youtube_filled.svg?react';
 import IconMail from '../../assets/icons/ic_mail_stroke.svg?react';
-import IconEdit from '../../assets/icons/ic_edit_stroke.svg?react';
-import IconChevronRight from '../../assets/icons/ic_chevronRight_stroke.svg?react';
-import IconClose from '../../assets/icons/ic_close_stroke_black.svg?react';
-
 import type { ProfileLink, ProfileLinkType } from '../../api/profileLinksAPI';
 
 type SnsItem = {
@@ -81,6 +84,9 @@ const usersProfileRoute = createRoute({
     const { data: profile } = useGetProfile(user?.id ?? '');
     const { data: profileLinks = [] } = useGetProfileLinks(user?.id ?? '');
     const { mutate: updateProfileLinkActive } = useUpdateProfileLinkActive();
+    const { mutateAsync: updateProfileLinkUrl } = useUpdateProfileLinkUrl();
+    const { mutateAsync: createProfileLink } = useCreateProfileLink();
+    const { mutate: deleteProfileLink } = useDeleteProfileLink();
     const { data: templates } = useGetTemplatesByUserId(user?.id ?? '');
     const { mutate: deleteTemplate } = useDeleteTemplateById();
     const { mutate: publishTemplate } = usePublishTemplateById();
@@ -91,15 +97,16 @@ const usersProfileRoute = createRoute({
       type: 'delete' | 'publish';
       templateId: string;
     }>(null);
-    const [showToast, setShowToast] = useState(false);
     const [isSnsSheetOpen, setIsSnsSheetOpen] = useState(false);
-    const [isSnsSheetVisible, setIsSnsSheetVisible] = useState(false);
     const lastConfirmActionRef = useRef<{
       type: 'delete' | 'publish';
       templateId: string;
     } | null>(null);
+    const showToast = useCallback((title: string, description?: string) => {
+      toastQueue.add({ title, description }, { timeout: 2400 });
+    }, []);
 
-    const { visibleSns, addedLinks, notAdded } = useMemo(() => {
+    const { visibleSns } = useMemo(() => {
       const linksWithUrl = profileLinks.filter((link) => Boolean(link.url?.trim()));
       const activeLinksWithUrl = linksWithUrl.filter((link) => link.isActive);
       const hasAnyUrl = linksWithUrl.length > 0;
@@ -117,33 +124,13 @@ const usersProfileRoute = createRoute({
             link: profileLinks.find((link) => link.type === sns.type) ?? null,
           }));
 
-      const added = linksWithUrl
-        .map((link) => {
-          const sns = SNS_MAP[link.type];
-          if (!sns) return null;
-          return { ...sns, link };
-        })
-        .filter(Boolean);
-
-      const addedTypes = new Set(linksWithUrl.map((link) => link.type));
-      const notAddedList = SNS_LIST.filter((sns) => !addedTypes.has(sns.type));
-
       return {
         visibleSns: visible as Array<SnsItem & { link: ProfileLink | null }>,
-        addedLinks: added as Array<SnsItem & { link: ProfileLink }>,
-        notAdded: notAddedList,
       };
     }, [profileLinks]);
 
-    const openSnsSheet = () => {
-      setIsSnsSheetOpen(true);
-      requestAnimationFrame(() => setIsSnsSheetVisible(true));
-    };
-
-    const closeSnsSheet = () => {
-      setIsSnsSheetVisible(false);
-      window.setTimeout(() => setIsSnsSheetOpen(false), 200);
-    };
+    const openSnsSheet = () => setIsSnsSheetOpen(true);
+    const closeSnsSheet = () => setIsSnsSheetOpen(false);
 
     // const handleGoToNotifications = useCallback(() => {
     //   //TODO: add notifications page
@@ -189,6 +176,32 @@ const usersProfileRoute = createRoute({
       setConfirmAction(null);
     };
 
+    const handleOpenSnsLink = (type: ProfileLinkType, url: string) => {
+      const value = url.trim();
+      
+      if (!value) return;
+
+      switch (type) {
+        case 'instagram':
+          window.open(`https://www.instagram.com/${value}`, '_blank', 'noopener,noreferrer');
+          break;
+        case 'youtube':
+          window.open(`https://www.youtube.com/channel/${value}`, '_blank', 'noopener,noreferrer');
+          break;
+        case 'tiktok':
+          window.open(`https://www.tiktok.com/@${value}`, '_blank', 'noopener,noreferrer');
+          break;
+        case 'twitter':
+          window.open(`https://x.com/${value}`, '_blank', 'noopener,noreferrer');
+          break;
+        case 'email':
+          window.open(`mailto:${value}`, '_blank', 'noopener,noreferrer');
+          break;
+        default:
+          break;
+      }
+    };
+
     const handleCancelAction = () => setConfirmAction(null);
 
     useEffect(() => {
@@ -204,35 +217,14 @@ const usersProfileRoute = createRoute({
 
     useEffect(() => {
       if (toast !== 'updated') return;
-      setShowToast(true);
-      const timeout = window.setTimeout(() => {
-        setShowToast(false);
-        navigate({
-          to: '/users/$userId/profile',
-          params: { userId },
-          search: { toast: 'updated' },
-          replace: true,
-        });
-      }, 2000);
-      return () => window.clearTimeout(timeout);
-    }, [toast, navigate, userId]);
-
-    useEffect(() => {
-      if (typeof document === 'undefined') return;
-      const root = document.documentElement;
-      const body = document.body;
-      if (isSnsSheetOpen) {
-        root.classList.add('body-scroll-lock');
-        body.classList.add('body-scroll-lock');
-      } else {
-        root.classList.remove('body-scroll-lock');
-        body.classList.remove('body-scroll-lock');
-      }
-      return () => {
-        root.classList.remove('body-scroll-lock');
-        body.classList.remove('body-scroll-lock');
-      };
-    }, [isSnsSheetOpen]);
+      showToast('템플릿이 업데이트되었습니다');
+      navigate({
+        to: '/users/$userId/profile',
+        params: { userId },
+        search: { toast: undefined },
+        replace: true,
+      });
+    }, [toast, navigate, showToast, userId]);
 
     return (
       <div className="flex flex-col gap-8 mt-1">
@@ -259,8 +251,7 @@ const usersProfileRoute = createRoute({
                   className={isDisabled ? 'opacity-20 cursor-not-allowed' : ''}
                   disabled={isDisabled}
                   onClick={() => {
-                    if (isDisabled) return;
-                    window.open(sns.link?.url, '_blank', 'noopener,noreferrer');
+                    handleOpenSnsLink(sns.type, sns.link?.url ?? '');
                   }}
                 >
                   {sns.icon}
@@ -346,85 +337,34 @@ const usersProfileRoute = createRoute({
             </div>
           ))}
         </div> 
-        {isSnsSheetOpen && (
-          <div className="fixed inset-0 z-50">
-            <button
-              type="button"
-              aria-label="SNS 설정 닫기"
-              className={`absolute inset-0 bg-black/35 transition-opacity duration-200 ${isSnsSheetVisible ? 'opacity-100' : 'opacity-0'}`}
-              onClick={closeSnsSheet}
-            />
-            <div
-              className={`absolute left-0 right-0 top-6 h-[calc(100dvh-24px)] rounded-t-2xl bg-white pt-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] transition-transform duration-200 ${isSnsSheetVisible ? 'translate-y-0' : 'translate-y-full'}`}
-            >
-              <div className="flex items-center justify-between border-b border-[#E9E9E9] px-5 pb-4">
-                <p className="text-base font-semibold">SNS 설정</p>
-                <button type="button" className='p-1' onClick={closeSnsSheet} aria-label="닫기">
-                  <IconClose className="h-4 w-4" aria-hidden />
-                </button>
-              </div>
-              <div className="flex flex-col gap-5 pt-4">
-                {addedLinks.length > 0 && (
-                  <div className="flex flex-col gap-3">
-                    {addedLinks.map((sns) => (
-                      <div key={sns.type} className="flex items-center justify-between px-5 py-3">
-                        <div className="flex items-center gap-3">
-                          {sns.icon}
-                          <span className="text-sm font-medium">{sns.name}</span>
-                        </div>
-                        <div className="flex items-center gap-8">
-                          <button type="button" aria-label={`${sns.name} 수정`}>
-                            <IconEdit className="h-5 w-5" aria-hidden />
-                          </button>
-                          <Switch
-                            aria-label={`${sns.name} 표시`}
-                            isSelected={sns.link.isActive}
-                            onChange={(isSelected) => {
-                              if (!user?.id) return;
-                              updateProfileLinkActive({
-                                id: sns.link.id,
-                                isActive: isSelected,
-                                userId: user.id,
-                              });
-                            }}
-                            className="group inline-flex items-center"
-                          >
-                            <span className="relative h-6 w-10 rounded-full bg-[#E5E5E5] p-[2px] transition-colors group-data-[selected]:bg-[#B1FF8D]">
-                              <span className="block h-5 w-5 rounded-full bg-white shadow transition-transform group-data-[selected]:translate-x-4" />
-                            </span>
-                          </Switch>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className='flex flex-col gap-2'>
-                  <p className="text-base font-semibold px-5">SNS 추가하기</p>
-                  <div className="flex flex-col gap-2">
-                    {notAdded.map((sns) => (
-                      <div
-                        key={sns.type}
-                        className="flex items-center justify-between px-5 py-3"
-                        aria-label={`${sns.name} 추가`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {sns.icon}
-                          <span className="text-sm font-medium">{sns.name}</span>
-                        </div>
-                        <button 
-                        type="button"
-                        onClick={() => console.log(sns.type)}
-                        className='p-1'>
-                          <IconChevronRight className="h-5 w-5" aria-hidden />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <SnsSettingsSheet
+          isOpen={isSnsSheetOpen}
+          onClose={closeSnsSheet}
+          profileLinks={profileLinks}
+          snsList={SNS_LIST}
+          onToggleActive={(link, isActive) => {
+            if (!user?.id) return;
+            updateProfileLinkActive({
+              id: link.id,
+              isActive,
+              userId: user.id,
+            });
+          }}
+          onAdd={async (type, inputValue) => {
+            if (!user?.id) return;
+            await createProfileLink({ userId: user.id, type, url: inputValue });
+            window.setTimeout(() => showToast('SNS 링크가 추가되었습니다'), 240);
+          }}
+          onEdit={async (link, inputValue) => {
+            if (!user?.id) return;
+            await updateProfileLinkUrl({ id: link.id, url: inputValue, userId: user.id });
+            window.setTimeout(() => showToast('SNS 링크가 수정되었습니다'), 240);
+          }}
+          onDelete={(link) => {
+            if (!user?.id) return;
+            deleteProfileLink({ id: link.id, userId: user.id });
+          }}
+        />
         {lastConfirmActionRef.current && (
           <ConfirmModal
             isOpen={confirmAction !== null}
@@ -439,11 +379,6 @@ const usersProfileRoute = createRoute({
             onConfirm={handleConfirmAction}
             onCancel={handleCancelAction}
           />
-        )}
-        {showToast && (
-          <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#222222] px-4 py-2 text-[14px] text-white shadow-lg">
-            템플릿이 업데이트되었습니다
-          </div>
         )}
       </div>
     );

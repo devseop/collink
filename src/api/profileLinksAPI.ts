@@ -61,3 +61,43 @@ export async function updateProfileLinkActive(id: string, isActive: boolean): Pr
 
   return mapProfileLink(data);
 }
+
+export async function updateProfileLinkUrl(id: string, url: string): Promise<ProfileLink> {
+  const { data, error } = await supabase
+    .from('profile_links')
+    .update({ url })
+    .eq('id', id)
+    .select('id, user_id, type, url, is_active, created_at, updated_at')
+    .single<ProfileLinkRow>();
+
+  if (error || !data) {
+    throw new Error(`Failed to update profile link: ${error?.message ?? 'Unknown error'}`);
+  }
+
+  return mapProfileLink(data);
+}
+
+export async function createProfileLink(userId: string, type: ProfileLinkType, url: string): Promise<ProfileLink> {
+  const { data, error } = await supabase
+    .from('profile_links')
+    .insert({ user_id: userId, type, url })
+    .select('id, user_id, type, url, is_active, created_at, updated_at')
+    .single<ProfileLinkRow>();
+
+  if (error || !data) {
+    throw new Error(`Failed to create profile link: ${error?.message ?? 'Unknown error'}`);
+  }
+
+  return mapProfileLink(data);
+}
+
+export async function deleteProfileLink(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('profile_links')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Failed to delete profile link: ${error.message}`);
+  }
+}
