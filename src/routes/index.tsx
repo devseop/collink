@@ -94,11 +94,33 @@ const indexRoute = createRoute({
     const body = document.body;
     const prevHtmlBg = html.style.backgroundColor;
     const prevBodyBg = body.style.backgroundColor;
+    const mediaQuery = window.matchMedia('(min-width: 640px)');
 
-    html.style.backgroundColor = '#98FF7C';
-    body.style.backgroundColor = '#98FF7C';
+    const applyBackground = () => {
+      if (mediaQuery.matches) {
+        html.style.backgroundColor = prevHtmlBg;
+        body.style.backgroundColor = prevBodyBg;
+        return;
+      }
+
+      html.style.backgroundColor = '#98FF7C';
+      body.style.backgroundColor = '#98FF7C';
+    };
+
+    applyBackground();
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', applyBackground);
+    } else {
+      mediaQuery.addListener(applyBackground);
+    }
 
     return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', applyBackground);
+      } else {
+        mediaQuery.removeListener(applyBackground);
+      }
       html.style.backgroundColor = prevHtmlBg;
       body.style.backgroundColor = prevBodyBg;
     };
@@ -132,8 +154,8 @@ const indexRoute = createRoute({
   }, []);
 
   return (
-    <div className="min-h-[100dvh] w-full bg-[#98FF7C] px-5 pb-10">
-      <div className="mx-auto flex min-h-[100dvh] w-full max-w-[380px] flex-col">
+    <div className="min-h-[100dvh] w-full bg-[#98FF7C] px-5 pb-10 sm:min-h-0 sm:h-full">
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-[380px] flex-col sm:min-h-0 sm:h-full">
         <div className="grid flex-1 grid-cols-2 grid-rows-[repeat(4,minmax(0,1fr))] gap-x-3 gap-y-4">
           <div className="flex items-center justify-center">
             <button type="button" onClick={handleShare} aria-label="linkku 공유하기">
