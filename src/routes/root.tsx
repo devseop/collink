@@ -9,7 +9,7 @@ type RouterContext = {
   };
 };
 
-const publicRoutes = new Set(['/logIn', '/signUp']);
+const publicRoutes = new Set(['/', '/logIn', '/signUp']);
 const reservedPublicSegments = new Set(['logIn', 'signUp', 'onboarding', 'users', 'templates']);
 
 const isPublicTemplatePath = (pathname: string) => {
@@ -49,7 +49,6 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
 
 export type { RouterContext };
 export default rootRoute;
-
 
 
 

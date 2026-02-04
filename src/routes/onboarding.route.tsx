@@ -28,15 +28,7 @@ const onboardingRoute = createRoute({
       });
     }
 
-    const profile = await getProfile(session.user.id);
-
-    if (profile?.isUserVisited) {
-      throw redirect({
-        to: '/templates/edit',
-        search: { templateId: undefined },
-        replace: true,
-      });
-    }
+    await getProfile(session.user.id);
   },
   component: function OnboardingPage() {
     const navigate = useNavigate();
@@ -74,7 +66,7 @@ const onboardingRoute = createRoute({
       if (!user?.id) return;
 
       await updateIsUserVisited(user.id, true);
-      navigate({ to: '/templates/edit', search: { templateId: undefined } });
+      navigate({ to: '/users/$userId/setUsername', params: { userId: user.id } });
     };
 
     const handleNext = async () => {
@@ -115,7 +107,7 @@ const onboardingRoute = createRoute({
       if (!user?.id) return;
       
       await updateIsUserVisited(user.id, true);
-      navigate({ to: `/users/${user.id}/profile`, replace: true, search: { toast: undefined } });
+      navigate({ to: '/users/$userId/setUsername', params: { userId: user.id }, replace: true });
     };
 
     return (

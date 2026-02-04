@@ -1,9 +1,10 @@
-import { createRoute, redirect, useNavigate, useParams } from '@tanstack/react-router';
+import { Link, createRoute, redirect, useNavigate, useParams } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { createProfile, getProfile, updateUsername } from '../../api/profileAPI';
 import { getCurrentHostname, isAuthBypassEnabled } from '../../utils/authBypass';
 import usersRoute from './users.route';
+import IconLogo from '../../assets/icons/symbol_linkku.svg?react';
 
 const userSetUsernameRoute = createRoute({
   path: '$userId/setUsername',
@@ -39,14 +40,14 @@ const userSetUsernameRoute = createRoute({
       profile = await createProfile(session.user.id);
     }
 
-    if (profile.username) {
-      throw redirect({
-        to: '/users/$userId/profile',
-        params: { userId: session.user.id },
-        replace: true,
-        search: { toast: undefined },
-      });
-    }
+    // if (profile.username) {
+    //   throw redirect({
+    //     to: '/users/$userId/profile',
+    //     params: { userId: session.user.id },
+    //     replace: true,
+    //     search: { toast: undefined },
+    //   });
+    // }
 
     return profile;
   },
@@ -131,22 +132,27 @@ const userSetUsernameRoute = createRoute({
     const isButtonDisabled = isSubmitting || isChecking || isUsernameExists || !linkUrl.trim();
 
     return (
-      <div className="flex flex-col gap-[48px] w-full">
-        <div className="flex flex-col gap-3">
-          <p className="text-[32px] font-extrabold text-center">만나서 반가워요!</p>
-          <div>
-            <p className="text-[15px] font-medium text-[#757575] text-center">
-              product name에서 사용할 링크를 입력해주세요
+      <div className="flex min-h-screen flex-col">
+        <div className="flex flex-row items-start">
+          <IconLogo className="h-5 w-auto" aria-hidden />
+        </div>
+        <div className="mt-[60px] flex flex-col items-center gap-4 text-center">
+          <p className="text-[28px] font-extrabold text-black">링꾸에 오신걸 환영해요!</p>
+          <div className="flex flex-col">
+            <p className="text-sm font-medium text-[#6E6E6E]">
+              먼저 링꾸에서 사용할 주소를 입력해주세요.
             </p>
-            <p className="text-[15px] font-medium text-[#757575] text-center">링크는 언제든 수정이 가능해요</p>
+            <p className="text-sm font-medium text-[#6E6E6E]">
+              입력한 주소는 언제든 변경이 가능해요.
+            </p>
           </div>
         </div>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <div className="flex flex-row items-start gap-1 bg-[#F5F5F5] px-4 py-3 rounded-lg w-full">
-              <p className="text-[15px] font-medium text-[#B3B3B3]">linkku.io/</p>
+        <div className="mt-9 flex flex-col gap-10">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-row items-center gap-1 rounded-xl bg-[#F5F5F5] px-4 py-3 w-full">
+              <p className="text-sm font-regular text-black">linkku.us/</p>
               <input
-                className="placeholder:text-[#B3B3B3] placeholder:font-medium w-full mt-[-1px] bg-transparent"
+                className="w-full bg-transparent text-sm font-medium text-black outline-none placeholder:text-black/50"
                 type="text"
                 placeholder="username"
                 value={linkUrl || ''}
@@ -169,25 +175,33 @@ const userSetUsernameRoute = createRoute({
               />
             </div>
             {isUsernameExists && (
-              <span className="text-[12px] font-medium text-[#FF0000] pl-4 pt-2">
+              <span className="text-[12px] font-medium text-[#FF0000] pl-4">
                 이 유저명은 다른 사람이 사용하고 있어요
               </span>
             )}
           </div>
-          <button
-            className="w-full h-[48px] rounded-lg flex items-center justify-center text-white font-bold"
-            onClick={() => handleSaveLinkUrl(linkUrl || '')}
-            disabled={isButtonDisabled}
-            style={{
-              backgroundColor: isButtonDisabled ? '#F5F5F5' : '#000000',
-              cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
-            }}
-          >
-            저장
-          </button>
-          {errorMessage && (
-            <p className="text-[12px] font-medium text-[#FF0000] text-center">{errorMessage}</p>
-          )}
+          <div className="flex flex-col gap-4">
+            <button
+              className={`w-full rounded-xl py-3 text-base font-semibold transition-colors ${
+                isButtonDisabled
+                ? 'bg-[#F1F1F1] text-[#B3B3B3] cursor-not-allowed'
+                : 'bg-[#B1FF8D] text-black'
+              }`}
+              onClick={() => handleSaveLinkUrl(linkUrl || '')}
+              disabled={isButtonDisabled}
+              >
+              추가하기
+            </button>
+            <p className="text-center text-[13px] text-[#6E6E6E]">
+              이미 계정이 있으신가요?{' '}
+              <Link to="/logIn" className="text-[#516FFF] font-semibold">
+                로그인하러 가기
+              </Link>
+            </p>
+            {errorMessage && (
+              <p className="text-[12px] font-medium text-[#FF0000] text-center">{errorMessage}</p>
+            )}
+          </div>
         </div>
       </div>
     );

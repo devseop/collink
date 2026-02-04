@@ -14,7 +14,7 @@ import { useDeleteTemplateById } from '../../hooks/templates/useDeleteTemplateBy
 import { usePublishTemplateById } from '../../hooks/templates/usePublishTemplateById';
 import { useCallback, useEffect, useMemo, useRef, useState, type Key } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Button, Menu, MenuItem, MenuTrigger, Separator } from 'react-aria-components';
+import { Button, Menu, MenuItem, MenuTrigger } from 'react-aria-components';
 import { formatDate } from '../../utils/formatDate';
 import ConfirmModal from '../../components/ConfirmModal';
 import { Popover } from '../../components/Popover';
@@ -139,7 +139,7 @@ const usersProfileRoute = createRoute({
 
     // TODO: 공지사항, 블로그, 피드백 페이지 추가
     const handleSettingsAction = useCallback(
-      (key: Key) => {
+      async (key: Key) => {
         switch (key) {
           case 'notice':
             // navigate({ to: '/notice' });
@@ -153,13 +153,14 @@ const usersProfileRoute = createRoute({
             window.open('/blog', '_blank', 'noopener,noreferrer');
             break;
           case 'logout':
-          signOut();
-          break;
+            await signOut();
+            navigate({ to: '/', search: {} });
+            break;
           default:
             break;
         }
       },
-      [signOut]
+      [navigate, signOut]
     );
 
     const handleGoToNewTemplate = () => {
