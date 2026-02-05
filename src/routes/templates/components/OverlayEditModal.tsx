@@ -77,12 +77,12 @@ export default function OverlayEditModal({
   handleTextColorChange,
   handleTextStyleChange,
 }: OverlayEditModalProps) {
-  const shouldShowImageModal = Boolean(selectedImageOverlay && isImageModalOpen);
   const shouldShowTextModal = Boolean(selectedTextOverlay && !editingOverlayId);
 
-  if (!shouldShowImageModal && !shouldShowTextModal) return null;
-
   const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
+  const [isImageMounted, setIsImageMounted] = useState(isImageModalOpen);
+  const [isImageVisible, setIsImageVisible] = useState(false);
+  const [renderImageOverlay, setRenderImageOverlay] = useState<(Overlay & { type: 'image' }) | null>(null);
   const selectedFontLabel =
     FONT_OPTIONS.find((option) => option.family === selectedTextOverlay?.fontFamily)?.label ??
     selectedTextOverlay?.fontFamily ??
@@ -140,13 +140,45 @@ export default function OverlayEditModal({
     setIsFontMenuOpen(false);
   }, [selectedTextOverlay, editingOverlayId]);
 
+  useEffect(() => {
+    if (selectedImageOverlay) {
+      setRenderImageOverlay(selectedImageOverlay);
+    }
+  }, [selectedImageOverlay]);
+
+  useEffect(() => {
+    if (isImageModalOpen) {
+      setIsImageMounted(true);
+      setIsImageVisible(false);
+      const id = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => setIsImageVisible(true));
+      });
+      return () => window.cancelAnimationFrame(id);
+    }
+
+    setIsImageVisible(false);
+    const timeout = window.setTimeout(() => setIsImageMounted(false), 200);
+    return () => window.clearTimeout(timeout);
+  }, [isImageModalOpen]);
+
+  const shouldRenderImageModal = Boolean(isImageMounted && renderImageOverlay);
+
+  if (!shouldRenderImageModal && !shouldShowTextModal) return null;
+
   return (
     <>
-      {shouldShowImageModal && selectedImageOverlay && (
+      {shouldRenderImageModal && renderImageOverlay && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/75" aria-hidden />
           <div
-            className="relative z-10 h-full w-full bg-white rounded-t-2xl mt-8 overflow-y-auto overscroll-contain"
+            className={`absolute inset-0 bg-black/75 transition-opacity duration-200 ${
+              isImageVisible ? 'opacity-100' : 'opacity-0'
+            }`}
+            aria-hidden
+          />
+          <div
+            className={`relative z-10 h-full w-full rounded-t-2xl bg-white mt-8 overflow-y-auto overscroll-contain transition-transform duration-200 ${
+              isImageVisible ? 'translate-y-0' : 'translate-y-full'
+            }`}
             onMouseDown={(event) => event.stopPropagation()}
             onTouchStart={(event) => event.stopPropagation()}
           >
