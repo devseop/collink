@@ -247,7 +247,8 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
         if (overlay.type !== 'image') return overlay;
         const nextId = nextImageIds[imageIndex];
         imageIndex += 1;
-        return (nextId && imageMap.get(nextId)) ?? overlay;
+        const nextOverlay = nextId ? imageMap.get(nextId) : undefined;
+        return nextOverlay ?? overlay;
       });
     });
   }, []);
