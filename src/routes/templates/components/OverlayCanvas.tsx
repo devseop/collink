@@ -34,6 +34,8 @@ type OverlayCanvasProps = {
   onSelectText: (overlayId: string) => void;
   handleRemoveOverlayElement: (overlayId: string) => void;
   startTransform: (event: ReactMouseEvent | ReactTouchEvent, overlay: Overlay, mode: 'rotate' | 'scale') => void;
+  draggingOverlayId?: string | null;
+  onOpenImageEdit?: (overlayId: string) => void;
   getTextDecorationValue: (underline?: boolean, strikethrough?: boolean) => string;
   getTextBoxStyles: (color: string, boxStyle?: number) => TextBoxStyles;
 };
@@ -61,6 +63,8 @@ export default function OverlayCanvas({
   onSelectText,
   handleRemoveOverlayElement,
   startTransform,
+  draggingOverlayId,
+  onOpenImageEdit,
   getTextDecorationValue,
   getTextBoxStyles,
 }: OverlayCanvasProps) {
@@ -70,6 +74,9 @@ export default function OverlayCanvas({
         const isText = overlay.type === 'text';
         const isEditing = isText && editingOverlayId === overlay.id;
         const isSelected = selectedImageId === overlay.id || selectedTextId === overlay.id;
+        const isDragging = draggingOverlayId === overlay.id;
+        const shouldShowFrame = isSelected || isDragging;
+        const frameOpacityClass = isDragging ? 'opacity-50' : 'opacity-100';
         const shouldPreview = isAnimationPreviewing && animationPreviewType !== 'default';
         const textBoxStyles = isText
           ? getTextBoxStyles(overlay.textColor ?? '#222222', overlay.boxStyle ?? 0)
@@ -110,8 +117,32 @@ export default function OverlayCanvas({
             key={overlay.id}
             className={`absolute z-20 touch-none ${isSelected ? 'p-2' : ''}`}
             style={{ ...positionStyle, touchAction: 'none' }}
-            onMouseDown={!isEditing ? (event) => handleOverlayMouseDown(event, overlay.id) : undefined}
-            onTouchStart={!isEditing ? (event) => handleOverlayTouchStart(event, overlay.id) : undefined}
+            onMouseDown={
+              !isEditing
+                ? (event) => {
+                    event.stopPropagation();
+                    if (!isText) {
+                      onSelectImage(overlay.id);
+                    } else {
+                      onSelectText(overlay.id);
+                    }
+                    handleOverlayMouseDown(event, overlay.id);
+                  }
+                : undefined
+            }
+            onTouchStart={
+              !isEditing
+                ? (event) => {
+                    event.stopPropagation();
+                    if (!isText) {
+                      onSelectImage(overlay.id);
+                    } else {
+                      onSelectText(overlay.id);
+                    }
+                    handleOverlayTouchStart(event, overlay.id);
+                  }
+                : undefined
+            }
             onClick={(event) => {
               event.stopPropagation();
               if (!isText) {
@@ -131,8 +162,8 @@ export default function OverlayCanvas({
                 transformOrigin: 'center',
               }}
             >
-              {isSelected && (
-                <div className="pointer-events-none absolute inset-0 z-10" aria-hidden>
+              {shouldShowFrame && (
+                <div className={`pointer-events-none absolute inset-0 z-10 ${frameOpacityClass}`} aria-hidden>
                   <div className="absolute -inset-1.5 border-2 border-dashed border-[#B1FF8D]" />
                   <span className="absolute -top-1.5 -left-1.5 h-1 w-1 bg-[#B1FF8D]" />
                   <span className="absolute -top-1.5 -right-1.5 h-1 w-1 bg-[#B1FF8D]" />
@@ -201,7 +232,7 @@ export default function OverlayCanvas({
                   />
                 )}
               </div>
-              {isSelected && (
+              {isSelected && !isDragging && (
                 <div className="pointer-events-none absolute inset-0 z-30">
                   <button
                     type="button"
@@ -217,17 +248,38 @@ export default function OverlayCanvas({
                       event.stopPropagation();
                       handleRemoveOverlayElement(overlay.id);
                     }}
-                    className="pointer-events-auto absolute -top-3 -left-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#FF4D4D] text-xs text-white transition-colors hover:bg-red-600"
+                    className="pointer-events-auto absolute -top-1.5 -left-1.5 z-30 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#FF4D4D] text-xs text-white transition-colors hover:bg-red-600"
                     aria-label="요소 제거"
                   >
                     <IconCloseWhite className="h-4 w-4" aria-hidden />
                   </button>
+                  {!isText && (
+                    <button
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onTouchStart={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpenImageEdit?.(overlay.id);
+                      }}
+                      className="pointer-events-auto absolute -bottom-1.5 -left-1.5 z-30 flex h-7 w-7 -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
+                      aria-label="스티커 설정"
+                    >
+                      <IconEditWhite className="h-4 w-4" aria-hidden />
+                    </button>
+                  )}
                   <>
                     <button
                       type="button"
                       onMouseDown={(event) => startTransform(event, overlay, 'rotate')}
                       onTouchStart={(event) => startTransform(event, overlay, 'rotate')}
-                      className="pointer-events-auto absolute -top-3 -right-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
+                      className="pointer-events-auto absolute -top-1.5 -right-1.5 z-30 flex h-7 w-7 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
                       aria-label="요소 회전"
                     >
                       <IconRotateWhite className="h-4 w-4" aria-hidden />
@@ -236,7 +288,7 @@ export default function OverlayCanvas({
                       type="button"
                       onMouseDown={(event) => startTransform(event, overlay, 'scale')}
                       onTouchStart={(event) => startTransform(event, overlay, 'scale')}
-                      className="pointer-events-auto absolute -bottom-3 -right-3 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
+                      className="pointer-events-auto absolute -bottom-1.5 -right-1.5 z-30 flex h-7 w-7 translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
                       aria-label="요소 크기 조절"
                     >
                       <IconScaleWhite className="h-4 w-4" aria-hidden />

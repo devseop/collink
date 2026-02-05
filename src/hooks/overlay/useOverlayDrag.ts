@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 import type { Overlay } from '../../types/overlay';
 
@@ -11,6 +11,7 @@ type UseOverlayDragOptions = {
 
 export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getContainerRect }: UseOverlayDragOptions) {
   const draggingOverlayId = useRef<string | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const getPointerPosition = useCallback(
     (clientX: number, clientY: number) => {
@@ -33,6 +34,7 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getCon
       if (!target) return;
 
       draggingOverlayId.current = overlayId;
+      setActiveDragId(overlayId);
       dragOffsetRef.current = {
         x: pointerX - target.x,
         y: pointerY - target.y,
@@ -59,6 +61,7 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getCon
 
   const stopDrag = useCallback(() => {
     draggingOverlayId.current = null;
+    setActiveDragId(null);
   }, []);
 
   useEffect(() => {
@@ -122,5 +125,6 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getCon
   return {
     handleOverlayMouseDown,
     handleOverlayTouchStart,
+    draggingOverlayId: activeDragId,
   };
 }

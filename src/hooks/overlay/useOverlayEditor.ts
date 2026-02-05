@@ -134,7 +134,7 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
     setEditingOverlayId((current) => (current === overlayId ? null : current));
   }, []);
 
-  const { handleOverlayMouseDown, handleOverlayTouchStart } = useOverlayDrag({
+  const { handleOverlayMouseDown, handleOverlayTouchStart, draggingOverlayId } = useOverlayDrag({
     overlays,
     editingOverlayId,
     setOverlays,
@@ -252,6 +252,7 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
     removeOverlay,
     handleOverlayMouseDown,
     handleOverlayTouchStart,
+    draggingOverlayId,
     triggerBackgroundSelect,
     triggerOverlaySelect,
     editingOverlayId,

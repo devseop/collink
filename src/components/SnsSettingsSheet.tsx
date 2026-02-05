@@ -180,7 +180,7 @@ export function SnsSettingsSheet({
       <button
         type="button"
         aria-label="설정 닫기"
-        className={`absolute inset-0 bg-black/35 transition-opacity duration-200 ${
+        className={`absolute inset-0 bg-black/75 transition-opacity duration-200 ${
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={onClose}

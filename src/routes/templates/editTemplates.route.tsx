@@ -245,6 +245,7 @@ const editTemplatesRoute = createRoute({
       removeOverlay,
       handleOverlayMouseDown,
       handleOverlayTouchStart,
+      draggingOverlayId,
       triggerBackgroundSelect,
       triggerOverlaySelect,
       editingOverlayId,
@@ -375,7 +376,6 @@ const editTemplatesRoute = createRoute({
       setSelectedTextId,
       selectedImageOverlay,
       selectedTextOverlay,
-      isOverlayFocused,
       isTextModalFloating,
       linkInputValue,
       setLinkInputValue,
@@ -398,6 +398,8 @@ const editTemplatesRoute = createRoute({
       finishEditingTextOverlay,
       startEditingTextOverlay,
     });
+
+    const [isStickerSheetOpen, setIsStickerSheetOpen] = useState(false);
 
 
     const selectedImageIndex = useMemo(
@@ -689,10 +691,26 @@ const editTemplatesRoute = createRoute({
     }, [linkInputValue, linkDescriptionInputValue, selectedImageOverlay, updateImageLink]);
 
     const handleOverlayModalClose = useCallback(() => {
+      setIsStickerSheetOpen(false);
       setSelectedImageId(null);
       setSelectedTextId(null);
       finishEditingTextOverlay();
     }, [finishEditingTextOverlay, setSelectedImageId, setSelectedTextId]);
+
+    useEffect(() => {
+      if (!selectedImageId) {
+        setIsStickerSheetOpen(false);
+      }
+    }, [selectedImageId]);
+
+    const handleOpenStickerSheet = useCallback(
+      (overlayId: string) => {
+        setSelectedImageId(overlayId);
+        setSelectedTextId(null);
+        setIsStickerSheetOpen(true);
+      },
+      [setSelectedImageId, setSelectedTextId]
+    );
 
     const handleTextStyleChange = useCallback(
       (style: { fontFamily?: string; fontSize?: number; fontWeight?: number; underline?: boolean; strikethrough?: boolean; textColor?: string }) => {
@@ -782,6 +800,8 @@ const editTemplatesRoute = createRoute({
               }}
               handleRemoveOverlayElement={handleRemoveOverlayElement}
               startTransform={startTransform}
+              draggingOverlayId={draggingOverlayId}
+              onOpenImageEdit={handleOpenStickerSheet}
               getTextDecorationValue={getTextDecorationValue}
               getTextBoxStyles={getTextBoxStyles}
             />
@@ -806,6 +826,7 @@ const editTemplatesRoute = createRoute({
         <OverlayEditModal
           selectedImageOverlay={selectedImageOverlay}
           selectedTextOverlay={selectedTextOverlay}
+          isImageModalOpen={isStickerSheetOpen}
           editingOverlayId={editingOverlayId}
           isTextModalFloating={isTextModalFloating}
           keyboardInset={keyboardInset}
@@ -853,9 +874,9 @@ const editTemplatesRoute = createRoute({
           />
         )}
         
-        {!showMotionOptions && (
+        {!showMotionOptions && !isStickerSheetOpen && !selectedTextId && (
           <OverlayNavBar
-            isOverlayFocused={isOverlayFocused}
+            isOverlayFocused={false}
             showBackgroundOptions={showBackgroundOptions}
             isEmptyState={isEmptyState}
             onOpenBackgroundOptions={() => {
