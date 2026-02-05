@@ -1,10 +1,11 @@
 import type { CSSProperties, MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 import type { Overlay } from '../../../types/overlay';
 
-import IconCloseWhite from '../../../assets/icons/ic_close_stroke_white.svg?react';
-import IconRotateWhite from '../../../assets/icons/ic_rotate_stroke_white.svg?react';
-import IconScaleWhite from '../../../assets/icons/ic_scale_stroke_white.svg?react';
-import IconEditWhite from '../../../assets/icons/ic_edit_stroke_white.svg?react';
+import IconClose from '../../../assets/icons/ic_close_stroke_black.svg?react';
+import IconRotate from '../../../assets/icons/ic_rotate_stroke.svg?react';
+import IconScale from '../../../assets/icons/ic_scale_stroke.svg?react';
+import IconEdit from '../../../assets/icons/ic_edit_stroke.svg?react';
+import IconLink from '../../../assets/icons/ic_link_stroke_black.svg?react';
 
 type TextBoxStyles = {
   color: string;
@@ -248,10 +249,10 @@ export default function OverlayCanvas({
                       event.stopPropagation();
                       handleRemoveOverlayElement(overlay.id);
                     }}
-                    className="pointer-events-auto absolute -top-1.5 -left-1.5 z-30 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#FF4D4D] text-xs text-white transition-colors hover:bg-red-600"
+                    className="pointer-events-auto absolute -top-1.5 -left-1.5 z-30 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#98FF7C]"
                     aria-label="요소 제거"
                   >
-                    <IconCloseWhite className="h-4 w-4" aria-hidden />
+                    <IconClose className="h-4 w-4" aria-hidden />
                   </button>
                   {!isText && (
                     <button
@@ -268,10 +269,14 @@ export default function OverlayCanvas({
                         event.stopPropagation();
                         onOpenImageEdit?.(overlay.id);
                       }}
-                      className="pointer-events-auto absolute -bottom-1.5 -left-1.5 z-30 flex h-7 w-7 -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
-                      aria-label="스티커 설정"
+                      className="pointer-events-auto absolute -bottom-1.5 -left-1.5 z-30 flex h-7 w-7 -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full bg-[#98FF7C]"
+                      aria-label={`${overlay.type === 'image' && overlay.linkUrl?.trim() ? '링크 설정' : '스티커 수정'}`}
                     >
-                      <IconEditWhite className="h-4 w-4" aria-hidden />
+                      {overlay.type === 'image' && overlay.linkUrl?.trim() ? (
+                        <IconLink className="h-4 w-4" aria-hidden />
+                      ) : (
+                        <IconEdit className="h-4 w-4" aria-hidden />
+                      )}
                     </button>
                   )}
                   <>
@@ -279,19 +284,19 @@ export default function OverlayCanvas({
                       type="button"
                       onMouseDown={(event) => startTransform(event, overlay, 'rotate')}
                       onTouchStart={(event) => startTransform(event, overlay, 'rotate')}
-                      className="pointer-events-auto absolute -top-1.5 -right-1.5 z-30 flex h-7 w-7 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
+                      className="pointer-events-auto absolute -top-1.5 -right-1.5 z-30 flex h-7 w-7 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#98FF7C]"
                       aria-label="요소 회전"
                     >
-                      <IconRotateWhite className="h-4 w-4" aria-hidden />
+                      <IconRotate className="h-4 w-4" aria-hidden />
                     </button>
                     <button
                       type="button"
                       onMouseDown={(event) => startTransform(event, overlay, 'scale')}
                       onTouchStart={(event) => startTransform(event, overlay, 'scale')}
-                      className="pointer-events-auto absolute -bottom-1.5 -right-1.5 z-30 flex h-7 w-7 translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full bg-[#222222] text-xs text-white transition-colors hover:bg-[#111111]"
+                      className="pointer-events-auto absolute -bottom-1.5 -right-1.5 z-30 flex h-7 w-7 translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full bg-[#98FF7C]"
                       aria-label="요소 크기 조절"
                     >
-                      <IconScaleWhite className="h-4 w-4" aria-hidden />
+                      <IconScale className="h-4 w-4" aria-hidden />
                     </button>
                   </>
                 </div>
