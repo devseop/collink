@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import templatesRoute from './templates.route';
 import { useOverlayEditor, IMAGE_SCALE_PERCENT_MIN } from '../../hooks/overlay/useOverlayEditor';
 import type { Overlay } from '../../types/overlay';
+import type { DroppableCollectionReorderEvent } from '@react-types/shared';
 import { useAuth } from '../../hooks/useAuth';
 import router from '../router';
 import { useTemplateSelectionStore } from '../../stores/templateSelectionStore';
@@ -263,6 +264,7 @@ const editTemplatesRoute = createRoute({
       updateImageLink,
       moveUp,
       moveDown,
+      reorderImageOverlays,
     } = useOverlayEditor({
       initialBackgroundImageUrl: initialEditorState.backgroundImageUrl,
       initialBackgroundColor: initialEditorState.backgroundColor,
@@ -273,6 +275,10 @@ const editTemplatesRoute = createRoute({
     const isEmptyState = !previewImage && !isBackgroundColored && overlays.length === 0;
     const showBackgroundToggle = backgroundOptionsSource === 'navbar';
     const colorPickerValue = backgroundColor ?? '#FFFFFF';
+    const imageOverlays = useMemo(
+      () => overlays.filter((overlay): overlay is Overlay & { type: 'image' } => overlay.type === 'image'),
+      [overlays]
+    );
 
     useEffect(() => {
       initialSnapshotRef.current = null;
@@ -583,6 +589,23 @@ const editTemplatesRoute = createRoute({
       [removeOverlay]
     );
 
+    const handleRemoveImageFromSheet = useCallback(
+      (overlayId: string) => {
+        const currentIndex = imageOverlays.findIndex((overlay) => overlay.id === overlayId);
+        const remaining = imageOverlays.filter((overlay) => overlay.id !== overlayId);
+        const fallbackIndex = Math.min(currentIndex, Math.max(remaining.length - 1, 0));
+        const fallbackId = remaining[fallbackIndex]?.id ?? null;
+
+        removeOverlay(overlayId);
+        setSelectedTextId((current) => (current === overlayId ? null : current));
+        setSelectedImageId((current) => {
+          if (current !== overlayId) return current;
+          return fallbackId;
+        });
+      },
+      [imageOverlays, removeOverlay, setSelectedImageId, setSelectedTextId]
+    );
+
     const overlayElementRefs = useRef<Record<string, HTMLElement | null>>({});
     const transformRef = useRef<{
       mode: 'rotate' | 'scale';
@@ -712,6 +735,28 @@ const editTemplatesRoute = createRoute({
       [setSelectedImageId, setSelectedTextId]
     );
 
+    const handleReorderImages = useCallback(
+      (event: DroppableCollectionReorderEvent) => {
+        const { keys, target } = event;
+        const imageIds = imageOverlays.map((overlay) => overlay.id);
+        const movingIds = imageIds.filter((id) => keys.has(id));
+        if (movingIds.length === 0) return;
+        const next = imageIds.filter((id) => !movingIds.includes(id));
+        const targetKey = String(target.key);
+        let insertIndex = next.indexOf(targetKey);
+        if (insertIndex < 0) {
+          next.push(...movingIds);
+        } else {
+          if (target.dropPosition === 'after') {
+            insertIndex += 1;
+          }
+          next.splice(insertIndex, 0, ...movingIds);
+        }
+        reorderImageOverlays(next);
+      },
+      [imageOverlays, reorderImageOverlays]
+    );
+
     const handleTextStyleChange = useCallback(
       (style: { fontFamily?: string; fontSize?: number; fontWeight?: number; underline?: boolean; strikethrough?: boolean; textColor?: string }) => {
         if (!selectedTextId) return;
@@ -827,6 +872,8 @@ const editTemplatesRoute = createRoute({
           selectedImageOverlay={selectedImageOverlay}
           selectedTextOverlay={selectedTextOverlay}
           isImageModalOpen={isStickerSheetOpen}
+          imageOverlays={imageOverlays}
+          selectedImageId={selectedImageId}
           editingOverlayId={editingOverlayId}
           isTextModalFloating={isTextModalFloating}
           keyboardInset={keyboardInset}
@@ -837,6 +884,9 @@ const editTemplatesRoute = createRoute({
           setIsLinkInputFocused={setIsLinkInputFocused}
           handleLinkUrlConfirm={handleLinkUrlConfirm}
           handleClose={handleOverlayModalClose}
+          onSelectImage={handleOpenStickerSheet}
+          onRemoveImage={handleRemoveImageFromSheet}
+          onReorderImages={handleReorderImages}
           moveUp={moveUp}
           moveDown={moveDown}
           canMoveImageUp={canMoveImageUp}

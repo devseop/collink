@@ -236,6 +236,22 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
 
   const moveDown = useCallback((overlayId: string) => moveOverlay(overlayId, -1), [moveOverlay]);
 
+  const reorderImageOverlays = useCallback((nextImageIds: string[]) => {
+    setOverlays((prev) => {
+      if (nextImageIds.length === 0) return prev;
+      const imageMap = new Map(
+        prev.filter((overlay) => overlay.type === 'image').map((overlay) => [overlay.id, overlay])
+      );
+      let imageIndex = 0;
+      return prev.map((overlay) => {
+        if (overlay.type !== 'image') return overlay;
+        const nextId = nextImageIds[imageIndex];
+        imageIndex += 1;
+        return (nextId && imageMap.get(nextId)) ?? overlay;
+      });
+    });
+  }, []);
+
   return {
     previewImage,
     backgroundFile,
@@ -269,6 +285,7 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
     updateImageLink,
     moveUp,
     moveDown,
+    reorderImageOverlays,
   };
 }
 

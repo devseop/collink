@@ -38,8 +38,8 @@ export function AppToastRegion() {
     >
       {({ toast }) => (
         <AppToast toast={toast}>
-          <ToastContent className="flex min-w-0 flex-1 flex-col">
-            <Text slot="title" className="text-sm font-semibold text-white">
+          <ToastContent className="flex flex-1 flex-col">
+            <Text slot="title" className="whitespace-nowrap text-sm font-semibold text-white">
               {toast.content.title}
             </Text>
             {toast.content.description && (
@@ -66,7 +66,7 @@ function AppToast(props: ToastProps<AppToastContent>) {
     <Toast
       {...props}
       style={{ viewTransitionName: props.toast.key } as CSSProperties}
-      className="flex w-[240px] items-center gap-3 rounded-lg bg-[#222222] px-4 py-3 font-sans text-white shadow-lg outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+      className="inline-flex w-fit max-w-[90vw] items-center gap-3 rounded-lg bg-[#222222] px-4 py-3 font-sans text-white shadow-lg outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
     />
   );
 }

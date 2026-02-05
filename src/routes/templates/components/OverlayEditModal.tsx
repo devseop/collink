@@ -1,17 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
+import { FONT_OPTIONS } from '../../../constants/fonts';
+import { DropIndicator, GridList, GridListItem, useDragAndDrop, type DragAndDropHooks } from 'react-aria-components';
+import { toastQueue } from '../../../components/AppToast';
+
 import type { Overlay } from '../../../types/overlay';
+import type { DroppableCollectionReorderEvent, Key, Selection } from '@react-types/shared';
+
 import IconTextBold from '../../../assets/icons/ic_bold.svg?react';
 import IconTextUnderline from '../../../assets/icons/ic_underline.svg?react';
 import IconTextStrikethrough from '../../../assets/icons/ic_strikethrough.svg?react';
 import IconClose from '../../../assets/icons/ic_close.svg?react';
 import IconFont from '../../../assets/icons/ic_font.svg?react';
-import { FONT_OPTIONS } from '../../../constants/fonts';
+import IconCheck from '../../../assets/icons/ic_check_stroke_colored.svg?react';
 
 type OverlayEditModalProps = {
   selectedImageOverlay: (Overlay & { type: 'image' }) | null;
   selectedTextOverlay: (Overlay & { type: 'text' }) | null;
   isImageModalOpen: boolean;
+  imageOverlays: Array<Overlay & { type: 'image' }>;
+  selectedImageId: string | null;
   editingOverlayId: string | null;
   isTextModalFloating: boolean;
   keyboardInset: number;
@@ -22,6 +30,9 @@ type OverlayEditModalProps = {
   setIsLinkInputFocused: (value: boolean) => void;
   handleLinkUrlConfirm: () => void;
   handleClose: () => void;
+  onSelectImage: (overlayId: string) => void;
+  onRemoveImage: (overlayId: string) => void;
+  onReorderImages: (event: DroppableCollectionReorderEvent) => void;
   moveUp: (overlayId: string) => void;
   moveDown: (overlayId: string) => void;
   canMoveImageUp: boolean;
@@ -45,6 +56,8 @@ export default function OverlayEditModal({
   selectedImageOverlay,
   selectedTextOverlay,
   isImageModalOpen,
+  imageOverlays,
+  selectedImageId,
   editingOverlayId,
   isTextModalFloating,
   keyboardInset,
@@ -55,10 +68,9 @@ export default function OverlayEditModal({
   setIsLinkInputFocused,
   handleLinkUrlConfirm,
   handleClose,
-  moveUp,
-  moveDown,
-  canMoveImageUp,
-  canMoveImageDown,
+  onSelectImage,
+  onRemoveImage,
+  onReorderImages,
   showTextColorPicker,
   setShowTextColorPicker,
   textColorValue,
@@ -75,6 +87,54 @@ export default function OverlayEditModal({
     FONT_OPTIONS.find((option) => option.family === selectedTextOverlay?.fontFamily)?.label ??
     selectedTextOverlay?.fontFamily ??
     '폰트 선택';
+
+  const { dragAndDropHooks } = useDragAndDrop<Overlay & { type: 'image' }>({
+    getItems: (keys, items) =>
+      items
+        .filter((item) => keys.has(item.id))
+        .map((item) => ({
+          'text/plain': String(item.id),
+          'overlay-image': JSON.stringify({ id: item.id }),
+        })),
+    onReorder: onReorderImages,
+    renderDropIndicator: (target) => <DropIndicator target={target} className="w-full h-full rounded-lg bg-[#98FF7C]/50" />,
+    renderDragPreview: (items) => {
+      const first = items[0] as Record<string, string> | undefined;
+      const raw = first?.['overlay-image'] ?? first?.['text/plain'] ?? '';
+      let previewId = '';
+      try {
+        previewId = typeof raw === 'string' && raw.startsWith('{') ? JSON.parse(raw).id ?? '' : raw;
+      } catch {
+        previewId = raw;
+      }
+      const previewImage = imageOverlays.find((overlay) => overlay.id === previewId)?.image ?? '';
+
+      return (
+        <div className="pointer-events-none h-14 w-14 overflow-hidden rounded-lg bg-transparent">
+          {previewImage ? (
+            <img src={previewImage} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full bg-transparent" />
+          )}
+        </div>
+      );
+    },
+  });
+
+  const selectedKeys = useMemo<Selection>(() => {
+    if (!selectedImageId) return new Set<Key>();
+    return new Set<Key>([selectedImageId]);
+  }, [selectedImageId]);
+
+  const handleSelectionChange = (keys: Selection) => {
+    if (keys === 'all') return;
+
+    const nextKey = Array.from(keys)[0];
+
+    if (!nextKey) return;
+
+    onSelectImage(String(nextKey));
+  };
 
   useEffect(() => {
     setIsFontMenuOpen(false);
@@ -104,36 +164,65 @@ export default function OverlayEditModal({
                   <IconClose className="h-4 w-4 text-[#222222]" aria-hidden />
                 </button>
               </div>
-              <div className="px-5 flex flex-col gap-6 pb-5">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-[#222222]">순서</p>
-                  <div className="flex gap-2">
-                    <button
-                      className="px-2 py-1 rounded-lg border text-xs disabled:opacity-40"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        moveDown(selectedImageOverlay.id);
-                      }}
-                      disabled={!canMoveImageDown}
-                    >
-                      뒤로
-                    </button>
-                    <button
-                      className="px-2 py-1 rounded-lg border text-xs disabled:opacity-40"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        moveUp(selectedImageOverlay.id);
-                      }}
-                      disabled={!canMoveImageUp}
-                    >
-                      앞으로
-                    </button>
-                  </div>
-                </div>
+              <div className="px-5 flex flex-col gap-4 pb-5">
+                {imageOverlays.length > 0 && (
+                  <GridList
+                    aria-label="스티커 목록"
+                    items={imageOverlays}
+                    selectionMode="single"
+                    selectionBehavior="replace"
+                    selectedKeys={selectedKeys}
+                    onSelectionChange={handleSelectionChange}
+                    onAction={(key) => onSelectImage(String(key))}
+                    dragAndDropHooks={dragAndDropHooks as unknown as DragAndDropHooks<Overlay & { type: 'image' }>}
+                    layout="grid"
+                    className="grid grid-cols-[repeat(4,56px)] gap-2 overflow-visible"
+                  >
+                    {(item) => {
+                      return (
+                        <GridListItem id={item.id} textValue="스티커" className="w-fit overflow-visible bg-transparent">
+                          {({ isSelected }) => (
+                            <div className="relative h-14 w-14">
+                              <div
+                                className={`relative h-14 w-14 overflow-hidden rounded-lg border box-border bg-[#F4F4F4] ${isSelected ? 'border-2 border-[#98FF7C]' : 'border-transparent'}`}
+                              >
+                                {isSelected && (
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <IconCheck className="h-8 w-8 z-10" aria-hidden />
+                                    <div className="absolute inset-0 bg-black/60" />
+                                  </div>
+                                )}
+                                <img
+                                  src={item.image}
+                                  alt="스티커"
+                                  className="h-full w-full object-cover"
+                                  draggable={false}
+                                />
+                              </div>
+                              {!isSelected && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onRemoveImage(item.id);
+                                  }}
+                                  className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[#222222] shadow"
+                                  aria-label="스티커 삭제"
+                                >
+                                  <IconClose className="h-3 w-3" aria-hidden />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </GridListItem>
+                      );
+                    }}
+                  </GridList>
+                )}
                 <div className="flex flex-col gap-2">
                   <p className="text-sm font-medium text-[#222222]">링크</p>
                   <div className="flex gap-2">
-                    <div className="flex items-center rounded-lg bg-[#F4F4F4] px-3 w-full h-10">
+                    <div className="flex items-center rounded-lg bg-[#F4F4F4] px-4 py-3 w-full">
                       <span className="text-sm text-[#313131] mr-[1px]">https://</span>
                       <input
                         type="text"
@@ -153,9 +242,7 @@ export default function OverlayEditModal({
                       />
                     </div>
                   </div>
-                  <p className="text-[11px] text-[#666666] leading-none">
-                    이 페이지를 방문하는 사람이 스티커를 누르면 이 링크로 이동할 수 있어요
-                  </p>
+                  <span className="text-[11px] text-[#666666] leading-none">이 페이지를 방문하는 사람이 스티커를 누르면 이 링크로 이동할 수 있어요</span>
                 </div>
                 <div className="flex flex-col gap-2">
                   <p className="text-sm font-medium text-[#222222]">설명</p>
@@ -167,16 +254,21 @@ export default function OverlayEditModal({
                     onFocus={() => setIsLinkInputFocused(true)}
                     onBlur={() => setIsLinkInputFocused(false)}
                     placeholder="링크를 간단하게 설명할 문구를 입력해주세요"
-                    className="w-full rounded-lg bg-[#F4F4F4] px-3 h-10 text-[16px] focus:outline-none leading-none placeholder:text-[#929292] placeholder:font-sm touch-manipulation"
+                    className="w-full rounded-lg bg-[#F4F4F4] px-4 py-3 text-[16px] focus:outline-none leading-none placeholder:text-[#929292] placeholder:font-sm touch-manipulation"
                   />
                 </div>
+                <span className="text-[11px] text-[#666666] leading-none">설명을 입력하지 않으면 링크가 대신 보여요</span>
               </div>
               <button
+                type="button"
                 onClick={(event) => {
                   event.stopPropagation();
                   handleLinkUrlConfirm();
+                  handleClose();
+                  toastQueue.add({ title: '스티커 정보가 저장되었습니다' }, { timeout: 2000 });
                 }}
-                className="w-calc(100% - 2rem) mx-5 py-4 rounded-lg bg-[#B1FF8D] text-black text-base font-semibold leading-none"
+                disabled={!linkInputValue}
+                className={`w-calc(100% - 2rem) mx-5 py-4 rounded-lg transition-colors text-base font-semibold leading-none ${linkInputValue ? 'bg-[#B1FF8D] text-black' : 'bg-[#E5E5E5] text-[#B2B2B2] cursor-not-allowed'}`}
               >
                 추가하기
               </button>
@@ -195,32 +287,6 @@ export default function OverlayEditModal({
           onTouchStart={(event) => event.stopPropagation()}
         >
           <div className="flex flex-col gap-3 px-4 h-14 items-center justify-center">
-          {/* 순서 UI */}
-          {/* <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-[#101010]">순서</p>
-            <div className="flex gap-2">
-              <button
-                className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  moveDown(selectedTextOverlay.id);
-                }}
-                disabled={!canMoveTextDown}
-              >
-                뒤로
-              </button>
-              <button
-                className="px-3 py-1.5 rounded-lg border text-xs disabled:opacity-40"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  moveUp(selectedTextOverlay.id);
-                }}
-                disabled={!canMoveTextUp}
-              >
-                앞으로
-              </button>
-            </div>
-          </div> */}
 
           <div className="flex gap-2 w-fit items-center">
             <div className="flex items-center gap-3">
