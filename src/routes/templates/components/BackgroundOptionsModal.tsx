@@ -1,6 +1,15 @@
-import { HexColorPicker } from 'react-colorful';
+import { useMemo } from 'react';
+import {
+  ColorArea,
+  ColorField,
+  ColorPicker,
+  ColorSlider,
+  ColorThumb,
+  Input,
+  parseColor,
+} from 'react-aria-components';
 import IconClose from '../../../assets/icons/ic_close.svg?react';
-import IconImage from '../../../assets/icons/ic_image.svg?react';
+import IconImage from '../../../assets/icons/ic_image_filled.svg?react';
 
 type BackgroundOptionsModalProps = {
   showBackgroundOptions: boolean;
@@ -28,6 +37,8 @@ export default function BackgroundOptionsModal({
   handleSelectColor,
 }: BackgroundOptionsModalProps) {
   if (!showBackgroundOptions) return null;
+
+  const colorValue = useMemo(() => parseColor(colorPickerValue), [colorPickerValue]);
 
   return (
     <div className="fixed left-0 right-0 bottom-0 z-50">
@@ -108,7 +119,27 @@ export default function BackgroundOptionsModal({
             </div>
           ) : (
             <div className="flex flex-col gap-6 px-5 pb-10">
-              <HexColorPicker color={colorPickerValue} onChange={handleSelectColor} style={{ width: '100%' }} />
+              <ColorPicker
+                value={colorValue}
+                onChange={(color) => handleSelectColor(color.toString('hex'))}
+              >
+                <div className="flex flex-col gap-4">
+                  <ColorArea
+                    colorSpace="hsl"
+                    xChannel="saturation"
+                    yChannel="lightness"
+                    className="relative h-[180px] w-full rounded-lg"
+                  >
+                    <ColorThumb className="h-4 w-4 rounded-full border-2 border-white shadow" />
+                  </ColorArea>
+                  <ColorSlider channel="hue" colorSpace="hsl" className="relative h-3 w-full rounded-full">
+                    <ColorThumb className="h-4 w-4 rounded-full border-2 border-white shadow" />
+                  </ColorSlider>
+                  <ColorField aria-label="색상" colorSpace="hsl" className="w-full">
+                    <Input className="w-full rounded-lg border border-[#D3D3D3] px-3 py-2 text-sm text-[#222222] outline-none" />
+                  </ColorField>
+                </div>
+              </ColorPicker>
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => {

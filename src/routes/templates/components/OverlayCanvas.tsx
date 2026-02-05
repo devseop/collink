@@ -1,8 +1,10 @@
 import type { CSSProperties, MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 import type { Overlay } from '../../../types/overlay';
-import IconCloseWhite from '../../../assets/icons/ic_close_white.svg?react';
-import IconRotateWhite from '../../../assets/icons/ic_rotate_white.svg?react';
-import IconScaleWhite from '../../../assets/icons/ic_scale_white.svg?react';
+
+import IconCloseWhite from '../../../assets/icons/ic_close_stroke_white.svg?react';
+import IconRotateWhite from '../../../assets/icons/ic_rotate_stroke_white.svg?react';
+import IconScaleWhite from '../../../assets/icons/ic_scale_stroke_white.svg?react';
+import IconEditWhite from '../../../assets/icons/ic_edit_stroke_white.svg?react';
 
 type TextBoxStyles = {
   color: string;
@@ -190,7 +192,7 @@ export default function OverlayCanvas({
                   <img
                     src={overlay.image}
                     alt={`오버레이 ${index + 1}`}
-                    className="object-cover rounded-md shadow-md pointer-events-none"
+                    className="object-cover pointer-events-none"
                     style={{
                       width: (overlay.baseWidth * overlay.scalePercent) / 100,
                       height: (overlay.baseHeight * overlay.scalePercent) / 100,

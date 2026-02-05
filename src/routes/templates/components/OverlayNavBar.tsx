@@ -1,8 +1,9 @@
 import NavigationButton from '../../../components/NavigationButton';
-import IconImage from '../../../assets/icons/ic_image.svg?react';
-import IconSticker from '../../../assets/icons/ic_sticker.svg?react';
-import IconText from '../../../assets/icons/ic_text.svg?react';
-import IconMotion from '../../../assets/icons/ic_motion.svg?react';
+
+import IconImage from '../../../assets/icons/ic_image_stroke.svg?react';
+import IconSticker from '../../../assets/icons/ic_sticker_stroke.svg?react';
+import IconText from '../../../assets/icons/ic_text_stroke.svg?react';
+import IconMotion from '../../../assets/icons/ic_motion_stroke.svg?react';
 
 type OverlayNavBarProps = {
   isOverlayFocused: boolean;
@@ -30,19 +31,19 @@ export default function OverlayNavBar({
       <div className="flex gap-2 w-fit px-4 rounded-xl bg-white shadow-lg">
         <NavigationButton onClick={onOpenBackgroundOptions} aria-label="배경 이미지 추가">
           <IconImage className="w-6 h-6 text-[#222222]" aria-hidden />
-          <span className="text-xs font-medium text-[#222222] leading-none">배경</span>
+          <span className="text-xs font-semibold text-[#222222] leading-none">배경</span>
         </NavigationButton>
         <NavigationButton onClick={onTriggerOverlaySelect} aria-label="스티커 추가">
           <IconSticker className="w-6 h-6 text-[#222222]" aria-hidden />
-          <span className="text-xs font-medium text-[#222222] leading-none">스티커</span>
+          <span className="text-xs font-semibold text-[#222222] leading-none">스티커</span>
         </NavigationButton>
         <NavigationButton onClick={() => onAddTextOverlay()} aria-label="텍스트 추가">
           <IconText className="w-6 h-6 text-[#222222]" aria-hidden />
-          <span className="text-xs font-medium text-[#222222] leading-none">텍스트</span>
+          <span className="text-xs font-semibold text-[#222222] leading-none">텍스트</span>
         </NavigationButton>
         <NavigationButton onClick={onOpenMotionOptions} aria-label="모션 추가">
           <IconMotion className="w-6 h-6 text-[#222222]" aria-hidden />
-          <span className="text-xs font-medium text-[#222222] leading-none">모션</span>
+          <span className="text-xs font-semibold text-[#222222] leading-none">모션</span>
         </NavigationButton>
       </div>
     </div>
