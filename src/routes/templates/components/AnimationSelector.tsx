@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import IconClose from '../../../assets/icons/ic_close.svg?react';
+import MotionSpread from '../../../assets/motions/mo_spread.gif';
+import MotionCollage from '../../../assets/motions/mo_collage.gif';
 
 type AnimationType = 'default' | 'spread' | 'collage';
 
@@ -19,6 +21,11 @@ export default function AnimationSelector({
   onClose,
 }: AnimationSelectorProps) {
   const [pendingType, setPendingType] = useState<AnimationType>(animationType);
+  const motionPreviews: Record<AnimationType, string | null> = {
+    default: null,
+    spread: MotionSpread,
+    collage: MotionCollage,
+  };
 
   useEffect(() => {
     setPendingType(animationType);
@@ -40,9 +47,9 @@ export default function AnimationSelector({
         <div className="flex flex-col gap-4 px-5 pb-8">
           <div className="flex w-full gap-3">
             {[
-              { value: 'default', label: '기본' },
-              { value: 'spread', label: '퍼짐' },
-              { value: 'collage', label: '콜라주' },
+              { value: 'default', label: '미적용' },
+              { value: 'spread', label: '흩어지기' },
+              { value: 'collage', label: '나타나기' },
             ].map((option) => (
               <button
                 key={option.value}
@@ -57,7 +64,16 @@ export default function AnimationSelector({
                     : 'text-[#6B6B6B] border-[#D3D3D3]'
                 }`}
               >
-                <div className="flex items-center justify-center bg-[#d2d2d2] h-[100px] w-full rounded-sm" />
+                {motionPreviews[option.value as AnimationType] ? (
+                  <img
+                    src={motionPreviews[option.value as AnimationType] ?? undefined}
+                    alt={`${option.label} 미리보기`}
+                    className="h-[100px] w-full rounded-md object-contain bg-[#ccc]/50"
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="h-[100px] w-full rounded-md bg-[#ccc]/50" />
+                )}
                 <p className="text-sm font-medium text-[#222222] leading-none mt-4 mb-1">{option.label}</p>
               </button>
             ))}

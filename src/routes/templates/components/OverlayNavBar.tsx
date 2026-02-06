@@ -38,8 +38,8 @@ export default function OverlayNavBar({
           <span className="text-xs font-semibold text-[#222222] leading-none">스티커</span>
         </NavigationButton>
         <NavigationButton onClick={() => onAddTextOverlay()} aria-label="텍스트 추가">
-          <IconText className="w-6 h-6 text-[#222222]" aria-hidden />
-          <span className="text-xs font-semibold text-[#222222] leading-none">텍스트</span>
+          <IconText className="w-[21px] h-[21px] text-[#222222] mt-[2px]" aria-hidden />
+          <span className="text-xs font-semibold text-[#222222] leading-none mt-[2px]">텍스트</span>
         </NavigationButton>
         <NavigationButton onClick={onOpenMotionOptions} aria-label="모션 추가">
           <IconMotion className="w-6 h-6 text-[#222222]" aria-hidden />

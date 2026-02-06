@@ -252,7 +252,7 @@ export default function OverlayCanvas({
                     className="pointer-events-auto absolute -top-1.5 -left-1.5 z-30 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#98FF7C]"
                     aria-label="요소 제거"
                   >
-                    <IconClose className="h-4 w-4" aria-hidden />
+                    <IconClose className="h-[14px] w-[14px]" aria-hidden />
                   </button>
                   {!isText && (
                     <button
@@ -296,7 +296,7 @@ export default function OverlayCanvas({
                       className="pointer-events-auto absolute -bottom-1.5 -right-1.5 z-30 flex h-7 w-7 translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full bg-[#98FF7C]"
                       aria-label="요소 크기 조절"
                     >
-                      <IconScale className="h-4 w-4" aria-hidden />
+                      <IconScale className="h-[14px] w-[14px]" aria-hidden />
                     </button>
                   </>
                 </div>
