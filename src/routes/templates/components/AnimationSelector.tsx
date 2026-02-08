@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import IconClose from '../../../assets/icons/ic_close.svg?react';
+import MotionDefault from '../../../assets/motions/mo_none.svg';
 import MotionSpread from '../../../assets/motions/mo_spread.gif';
 import MotionCollage from '../../../assets/motions/mo_collage.gif';
 
@@ -22,7 +23,7 @@ export default function AnimationSelector({
 }: AnimationSelectorProps) {
   const [pendingType, setPendingType] = useState<AnimationType>(animationType);
   const motionPreviews: Record<AnimationType, string | null> = {
-    default: null,
+    default: MotionDefault,
     spread: MotionSpread,
     collage: MotionCollage,
   };
