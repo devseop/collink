@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { HexColorPicker } from 'react-colorful';
 import { FONT_OPTIONS } from '../../../constants/fonts';
 import { DropIndicator, GridList, GridListItem, useDragAndDrop, type DragAndDropHooks } from 'react-aria-components';
 import { toastQueue } from '../../../components/AppToast';
+import ColorPickerPanel from './ColorPickerPanel';
 
 import type { Overlay } from '../../../types/overlay';
 import type { DroppableCollectionReorderEvent, Key, Selection } from '@react-types/shared';
@@ -78,6 +78,10 @@ export default function OverlayEditModal({
   handleTextStyleChange,
 }: OverlayEditModalProps) {
   const shouldShowTextModal = Boolean(selectedTextOverlay && !editingOverlayId);
+  const textModalBottom = isTextModalFloating ? 40 : keyboardInset + 16;
+  const textModalHeight = 56;
+  const floatingPanelGap = 16;
+  const floatingPanelBottom = textModalBottom + textModalHeight + floatingPanelGap;
 
   const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
   const [isImageMounted, setIsImageMounted] = useState(isImageModalOpen);
@@ -313,7 +317,7 @@ export default function OverlayEditModal({
         <div
           className="fixed left-1/2 -translate-x-1/2 z-50 w-fit max-w-[92vw] rounded-2xl bg-white shadow-lg transition-[bottom] duration-200"
           style={{
-            bottom: isTextModalFloating ? '2.5rem' : `${keyboardInset + 16}px`,
+            bottom: `${textModalBottom}px`,
           }}
           onMouseDown={(event) => event.stopPropagation()}
           onTouchStart={(event) => event.stopPropagation()}
@@ -324,7 +328,10 @@ export default function OverlayEditModal({
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setShowTextColorPicker((prev) => !prev)}
+                onClick={() => {
+                  setIsFontMenuOpen(false);
+                  setShowTextColorPicker((prev) => !prev);
+                }}
                 className="h-8 w-8 rounded-md border border-black/10"
                 style={{ backgroundColor: textColorValue }}
                 aria-label="텍스트 색상"
@@ -367,7 +374,10 @@ export default function OverlayEditModal({
             <div className="ml-auto">
               <button
                 type="button"
-                onClick={() => setIsFontMenuOpen((prev) => !prev)}
+                onClick={() => {
+                  setShowTextColorPicker(false);
+                  setIsFontMenuOpen((prev) => !prev);
+                }}
                 className={`h-8 w-8 rounded-md items-center justify-center flex ${
                   isFontMenuOpen ? 'bg-[#F4F4F4]' : 'bg-white'
                 }`}
@@ -377,29 +387,39 @@ export default function OverlayEditModal({
               </button>
             </div>
           </div>
-
-          {showTextColorPicker && (
-            <div className="pt-2">
-              <HexColorPicker color={textColorValue} onChange={handleTextColorChange} style={{ width: '100%' }} />
-            </div>
-          )}
         </div>
         </div>
       )}
+      {showTextColorPicker && selectedTextOverlay && !editingOverlayId && (
+        <div
+          className="fixed left-1/2 -translate-x-1/2 z-50 w-[min(92vw,360px)] rounded-2xl bg-white p-4 shadow-lg transition-[bottom] duration-200"
+          style={{ bottom: `${floatingPanelBottom}px` }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+        >
+          <ColorPickerPanel value={textColorValue} onChange={handleTextColorChange} />
+        </div>
+      )}
       {isFontMenuOpen && selectedTextOverlay && !editingOverlayId && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-[calc(2.5rem+32px)] z-50 w-fit">
-          <div className="flex items-center gap-2 overflow-x-auto">
+        <div
+          className="fixed left-1/2 -translate-x-1/2 z-50 w-[92vw] max-w-[420px] py-3 transition-[bottom] duration-200"
+          style={{ bottom: `${floatingPanelBottom}px` }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+        >
+          <div className="flex max-w-full flex-row items-center gap-2 overflow-x-auto whitespace-nowrap">
             {FONT_OPTIONS.map((option) => {
               const isSelected = option.family === selectedTextOverlay.fontFamily;
               return (
                 <button
                   key={option.family}
                   type="button"
-                  onClick={() => {
+                  onClick={(event) => {
+                    event.stopPropagation();
                     handleTextStyleChange({ fontFamily: option.family });
                     setIsFontMenuOpen(false);
                   }}
-                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
+                  className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
                     isSelected ? 'bg-[#222222] text-white' : 'bg-[#F4F4F4] text-[#222222]'
                   }`}
                   style={{ fontFamily: option.family }}

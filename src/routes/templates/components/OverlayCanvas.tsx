@@ -69,6 +69,10 @@ export default function OverlayCanvas({
   getTextDecorationValue,
   getTextBoxStyles,
 }: OverlayCanvasProps) {
+  const TEXT_BASE_WIDTH = 140;
+  const TEXT_BASE_MIN_HEIGHT = 24;
+  const TEXT_BASE_PADDING = 8;
+
   return (
     <>
       {overlays.map((overlay, index) => {
@@ -82,9 +86,12 @@ export default function OverlayCanvas({
         const textBoxStyles = isText
           ? getTextBoxStyles(overlay.textColor ?? '#222222', overlay.boxStyle ?? 0)
           : null;
-        const overlayTransform = isText
-          ? `rotate(${overlay.rotation ?? 0}deg) scale(${(overlay.scalePercent ?? imageScaleDefaultPercent) / 100})`
-          : `rotate(${overlay.rotation ?? 0}deg)`;
+        const textScaleFactor = isText ? (overlay.scalePercent ?? imageScaleDefaultPercent) / 100 : 1;
+        const scaledTextFontSize = isText ? Math.max(1, overlay.fontSize * textScaleFactor) : 0;
+        const scaledTextWidth = isText ? TEXT_BASE_WIDTH * textScaleFactor : 0;
+        const scaledTextMinHeight = isText ? TEXT_BASE_MIN_HEIGHT * textScaleFactor : 0;
+        const scaledTextPadding = isText ? TEXT_BASE_PADDING * textScaleFactor : 0;
+        const overlayTransform = `rotate(${overlay.rotation ?? 0}deg)`;
         const positionStyle: CSSProperties = {
           left: `${overlay.x}px`,
           top: `${overlay.y}px`,
@@ -181,9 +188,12 @@ export default function OverlayCanvas({
                       onChange={(event) => updateTextOverlay(overlay.id, event.target.value)}
                       onBlur={() => finishEditingTextOverlay()}
                       onMouseDown={(event) => event.stopPropagation()}
-                      className="min-w-[140px] min-h-[24px] bg-transparent p-2 text-center focus:outline-none touch-manipulation"
+                      className="bg-transparent text-center focus:outline-none touch-manipulation"
                       style={{
-                        fontSize: `${overlay.fontSize}px`,
+                        width: `${scaledTextWidth}px`,
+                        minHeight: `${scaledTextMinHeight}px`,
+                        padding: `${scaledTextPadding}px`,
+                        fontSize: `${scaledTextFontSize}px`,
                         fontWeight: overlay.fontWeight,
                         fontFamily: overlay.fontFamily,
                         color: textBoxStyles?.color ?? overlay.textColor ?? '#222222',
@@ -195,9 +205,12 @@ export default function OverlayCanvas({
                     />
                   ) : (
                     <div
-                      className="w-[140px] min-h-[24px] text-shadow-lg/30 text-center cursor-text touch-manipulation"
+                      className="text-shadow-lg/30 text-center cursor-text touch-manipulation"
                       style={{
-                        fontSize: `${overlay.fontSize}px`,
+                        width: `${scaledTextWidth}px`,
+                        minHeight: `${scaledTextMinHeight}px`,
+                        padding: `${scaledTextPadding}px`,
+                        fontSize: `${scaledTextFontSize}px`,
                         fontWeight: overlay.fontWeight,
                         fontFamily: overlay.fontFamily,
                         color: textBoxStyles?.color ?? overlay.textColor ?? '#222222',
