@@ -10,7 +10,14 @@ type UseOverlayDragOptions = {
 };
 
 export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getContainerRect }: UseOverlayDragOptions) {
+  const DRAG_START_THRESHOLD_PX = 5;
   const draggingOverlayId = useRef<string | null>(null);
+  const pendingDragRef = useRef<{
+    overlayId: string;
+    pointerType: 'mouse' | 'touch';
+    startX: number;
+    startY: number;
+  } | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const getPointerPosition = useCallback(
@@ -31,7 +38,7 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getCon
     (overlayId: string, pointerX: number, pointerY: number) => {
       if (editingOverlayId && editingOverlayId === overlayId) return;
       const target = overlays.find((overlay) => overlay.id === overlayId);
-      if (!target) return;
+      if (!target) return false;
 
       draggingOverlayId.current = overlayId;
       setActiveDragId(overlayId);
@@ -39,6 +46,7 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getCon
         x: pointerX - target.x,
         y: pointerY - target.y,
       };
+      return true;
     },
     [overlays, editingOverlayId]
   );
@@ -61,32 +69,58 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getCon
 
   const stopDrag = useCallback(() => {
     draggingOverlayId.current = null;
+    pendingDragRef.current = null;
     setActiveDragId(null);
   }, []);
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
-      if (!draggingOverlayId.current) return;
-      event.preventDefault();
       const point = getPointerPosition(event.clientX, event.clientY);
+      if (draggingOverlayId.current) {
+        event.preventDefault();
+        updateOverlayPosition(point.x, point.y);
+        return;
+      }
+      const pending = pendingDragRef.current;
+      if (!pending || pending.pointerType !== 'mouse') return;
+      const hasMovedEnough =
+        Math.hypot(point.x - pending.startX, point.y - pending.startY) >= DRAG_START_THRESHOLD_PX;
+      if (!hasMovedEnough) return;
+      const didStart = startDrag(pending.overlayId, pending.startX, pending.startY);
+      pendingDragRef.current = null;
+      if (!didStart) return;
+      event.preventDefault();
       updateOverlayPosition(point.x, point.y);
     };
 
     const handleMouseUp = () => {
-      if (!draggingOverlayId.current) return;
+      if (!draggingOverlayId.current && !pendingDragRef.current) return;
       stopDrag();
     };
 
     const handleTouchMove = (event: TouchEvent) => {
-      if (!draggingOverlayId.current) return;
       const touch = event.touches[0];
       if (!touch) return;
       const point = getPointerPosition(touch.clientX, touch.clientY);
+      if (draggingOverlayId.current) {
+        if (event.cancelable) event.preventDefault();
+        updateOverlayPosition(point.x, point.y);
+        return;
+      }
+      const pending = pendingDragRef.current;
+      if (!pending || pending.pointerType !== 'touch') return;
+      const hasMovedEnough =
+        Math.hypot(point.x - pending.startX, point.y - pending.startY) >= DRAG_START_THRESHOLD_PX;
+      if (!hasMovedEnough) return;
+      const didStart = startDrag(pending.overlayId, pending.startX, pending.startY);
+      pendingDragRef.current = null;
+      if (!didStart) return;
+      if (event.cancelable) event.preventDefault();
       updateOverlayPosition(point.x, point.y);
     };
 
     const handleTouchEnd = () => {
-      if (!draggingOverlayId.current) return;
+      if (!draggingOverlayId.current && !pendingDragRef.current) return;
       stopDrag();
     };
 
@@ -101,15 +135,22 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getCon
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [getPointerPosition, stopDrag, updateOverlayPosition]);
+  }, [getPointerPosition, startDrag, stopDrag, updateOverlayPosition]);
 
   const handleOverlayMouseDown = useCallback(
-    (event: ReactMouseEvent<HTMLDivElement>, overlayId: string) => {
-      event.preventDefault();
+    (event: ReactMouseEvent<HTMLDivElement>, overlayId: string, shouldPreventDefault = true) => {
+      if (shouldPreventDefault) {
+        event.preventDefault();
+      }
       const point = getPointerPosition(event.clientX, event.clientY);
-      startDrag(overlayId, point.x, point.y);
+      pendingDragRef.current = {
+        overlayId,
+        pointerType: 'mouse',
+        startX: point.x,
+        startY: point.y,
+      };
     },
-    [getPointerPosition, startDrag]
+    [getPointerPosition]
   );
 
   const handleOverlayTouchStart = useCallback(
@@ -117,9 +158,14 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getCon
       const touch = event.touches[0];
       if (!touch) return;
       const point = getPointerPosition(touch.clientX, touch.clientY);
-      startDrag(overlayId, point.x, point.y);
+      pendingDragRef.current = {
+        overlayId,
+        pointerType: 'touch',
+        startX: point.x,
+        startY: point.y,
+      };
     },
-    [getPointerPosition, startDrag]
+    [getPointerPosition]
   );
 
   return {

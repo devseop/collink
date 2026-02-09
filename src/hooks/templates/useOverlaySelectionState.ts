@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { TouchEvent as ReactTouchEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 import type { Overlay } from '../../types/overlay';
 
 type UseOverlaySelectionStateOptions = {
@@ -120,7 +120,11 @@ export function useOverlaySelectionState({
     setTextColorValue(selectedTextOverlay.textColor ?? '#222222');
   }, [selectedTextOverlay]);
 
-  const handleBackgroundPointerDown = useCallback(() => {
+  const handleBackgroundPointerDown = useCallback((event: ReactMouseEvent | ReactTouchEvent) => {
+    const target = event.target;
+    if (target instanceof Element && target.closest('[data-overlay-frame="true"]')) {
+      return;
+    }
     finishEditingTextOverlay();
     setSelectedImageId(null);
     setSelectedTextId(null);

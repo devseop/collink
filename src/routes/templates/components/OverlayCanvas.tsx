@@ -7,6 +7,49 @@ import IconScale from '../../../assets/icons/ic_scale_stroke.svg?react';
 import IconEdit from '../../../assets/icons/ic_edit_stroke.svg?react';
 import IconLink from '../../../assets/icons/ic_link_stroke_black.svg?react';
 
+const FALLBACK_TEXT_WIDTH_PER_CHAR = 0.62;
+let textMeasureContext: CanvasRenderingContext2D | null = null;
+
+const getTextMeasureContext = () => {
+  if (typeof document === 'undefined') return null;
+  if (textMeasureContext) return textMeasureContext;
+  const canvas = document.createElement('canvas');
+  textMeasureContext = canvas.getContext('2d');
+  return textMeasureContext;
+};
+
+const measureTextContentWidth = ({
+  text,
+  fontSize,
+  fontFamily,
+  fontWeight,
+  minWidth,
+  padding,
+}: {
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+  fontWeight: number;
+  minWidth: number;
+  padding: number;
+}) => {
+  const lines = (text || ' ').split('\n');
+  const context = getTextMeasureContext();
+  let contentWidth = 0;
+
+  if (context) {
+    context.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+    lines.forEach((line) => {
+      contentWidth = Math.max(contentWidth, context.measureText(line || ' ').width);
+    });
+  } else {
+    const longestLine = lines.reduce((max, line) => Math.max(max, line.length), 1);
+    contentWidth = longestLine * fontSize * FALLBACK_TEXT_WIDTH_PER_CHAR;
+  }
+
+  return Math.max(minWidth, Math.ceil(contentWidth + padding * 2));
+};
+
 type TextBoxStyles = {
   color: string;
   backgroundColor: string;
@@ -23,7 +66,11 @@ type OverlayCanvasProps = {
   isAnimationPreviewActive?: boolean;
   isAnimationPreviewing?: boolean;
   viewportCenter?: { x: number; y: number };
-  handleOverlayMouseDown: (event: ReactMouseEvent<HTMLDivElement>, overlayId: string) => void;
+  handleOverlayMouseDown: (
+    event: ReactMouseEvent<HTMLDivElement>,
+    overlayId: string,
+    shouldPreventDefault?: boolean
+  ) => void;
   handleOverlayTouchStart: (event: ReactTouchEvent<HTMLDivElement>, overlayId: string) => void;
   handleTextOverlayTouchStart: (event: ReactTouchEvent, overlayId: string) => void;
   handleTextOverlayTouchMove: (event: ReactTouchEvent, overlayId: string) => void;
@@ -69,7 +116,7 @@ export default function OverlayCanvas({
   getTextDecorationValue,
   getTextBoxStyles,
 }: OverlayCanvasProps) {
-  const TEXT_BASE_WIDTH = 140;
+  const TEXT_BASE_WIDTH = 96;
   const TEXT_BASE_MIN_HEIGHT = 24;
   const TEXT_BASE_PADDING = 8;
 
@@ -88,9 +135,19 @@ export default function OverlayCanvas({
           : null;
         const textScaleFactor = isText ? (overlay.scalePercent ?? imageScaleDefaultPercent) / 100 : 1;
         const scaledTextFontSize = isText ? Math.max(1, overlay.fontSize * textScaleFactor) : 0;
-        const scaledTextWidth = isText ? TEXT_BASE_WIDTH * textScaleFactor : 0;
+        const scaledTextBaseWidth = isText ? TEXT_BASE_WIDTH * textScaleFactor : 0;
         const scaledTextMinHeight = isText ? TEXT_BASE_MIN_HEIGHT * textScaleFactor : 0;
         const scaledTextPadding = isText ? TEXT_BASE_PADDING * textScaleFactor : 0;
+        const scaledTextWidth = isText
+          ? measureTextContentWidth({
+              text: overlay.text,
+              fontSize: scaledTextFontSize,
+              fontFamily: overlay.fontFamily,
+              fontWeight: overlay.fontWeight,
+              minWidth: scaledTextBaseWidth,
+              padding: scaledTextPadding,
+            })
+          : 0;
         const overlayTransform = `rotate(${overlay.rotation ?? 0}deg)`;
         const positionStyle: CSSProperties = {
           left: `${overlay.x}px`,
@@ -123,6 +180,7 @@ export default function OverlayCanvas({
         return (
           <div
             key={overlay.id}
+            data-overlay-frame="true"
             className={`absolute z-20 touch-none ${isSelected ? 'p-2' : ''}`}
             style={{ ...positionStyle, touchAction: 'none' }}
             onMouseDown={
@@ -134,7 +192,7 @@ export default function OverlayCanvas({
                     } else {
                       onSelectText(overlay.id);
                     }
-                    handleOverlayMouseDown(event, overlay.id);
+                    handleOverlayMouseDown(event, overlay.id, !isText);
                   }
                 : undefined
             }
