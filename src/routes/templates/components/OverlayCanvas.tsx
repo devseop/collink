@@ -179,11 +179,13 @@ export default function OverlayCanvas({
           }
         }
 
+        const overlayZIndexClass = isDragging ? 'z-40' : 'z-20';
+
         return (
           <div
             key={overlay.id}
             data-overlay-frame="true"
-            className={`absolute z-20 touch-none ${isSelected ? 'p-2' : ''}`}
+            className={`absolute ${overlayZIndexClass} touch-none ${isSelected ? 'p-2' : ''}`}
             style={{ ...positionStyle, touchAction: 'none' }}
             onMouseDown={
               !isEditing

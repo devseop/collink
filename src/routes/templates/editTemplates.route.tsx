@@ -231,6 +231,19 @@ const editTemplatesRoute = createRoute({
       }
       return mapTemplateToEditorState(selectedTemplate);
     }, [committedSnapshot, draftSnapshot, selectedTemplate, templateId, editingTemplate]);
+    const getOverlayVerticalDragBounds = useCallback(() => {
+      if (typeof window === 'undefined') return null;
+      const rect = contentRef.current?.getBoundingClientRect();
+      if (!rect) return null;
+
+      const topGuideY = 80 - rect.top;
+      const bottomGuideY = window.innerHeight - 106 - rect.top;
+
+      return {
+        top: Math.max(0, topGuideY),
+        bottom: Math.min(rect.height, bottomGuideY),
+      };
+    }, []);
 
     const { user } = useAuth();
     const {
@@ -272,6 +285,7 @@ const editTemplatesRoute = createRoute({
       initialIsBackgroundColored: initialEditorState.isBackgroundColored,
       initialOverlays: initialEditorState.overlays,
       getContainerRect: () => contentRef.current?.getBoundingClientRect() ?? null,
+      getVerticalDragBounds: getOverlayVerticalDragBounds,
     });
     const persistDraftSnapshot = useCallback(() => {
       setDraft({
@@ -430,6 +444,7 @@ const editTemplatesRoute = createRoute({
     );
     const canMoveImageUp = selectedImageIndex >= 0 && selectedImageIndex < overlays.length - 1;
     const canMoveImageDown = selectedImageIndex > 0;
+    const isOverlayMoving = Boolean(draggingOverlayId);
 
     const handleSaveTemplate = useCallback(async () => {
       if (!user) {
@@ -796,22 +811,24 @@ const editTemplatesRoute = createRoute({
         onMouseDown={handleBackgroundPointerDown}
         onTouchStart={handleBackgroundPointerDown}
       >
-        <Header
-          useConfirmOnBack={hasChanges}
-          templateTabs={{
-            selectedKey: 'edit',
-            onSelectionChange: (key) => {
-              if (key === 'edit') return;
-              persistDraftSnapshot();
-              router.navigate({ to: '/templates/select' });
-            },
-          }}
-          rightAction={{
-            label: '공유',
-            onClick: handleSaveTemplate,
-            disabled: Boolean(editingOverlayId),
-          }}
-        />
+        {!isOverlayMoving && (
+          <Header
+            useConfirmOnBack={hasChanges}
+            templateTabs={{
+              selectedKey: 'edit',
+              onSelectionChange: (key) => {
+                if (key === 'edit') return;
+                persistDraftSnapshot();
+                router.navigate({ to: '/templates/select' });
+              },
+            }}
+            rightAction={{
+              label: '공유',
+              onClick: handleSaveTemplate,
+              disabled: Boolean(editingOverlayId),
+            }}
+          />
+        )}
         <div ref={captureRef} className="inset-0 z-0 w-full h-full object-cover">
           {previewImage && (
             <div className="inset-0 z-0 w-full h-full object-cover">
@@ -876,6 +893,13 @@ const editTemplatesRoute = createRoute({
             />
           </div>
         </div>
+        {isOverlayMoving && (
+          <div className="pointer-events-none absolute inset-0 z-30">
+            <div className="absolute inset-0 bg-black/75" />
+            <div className="absolute inset-x-0 top-20 h-px bg-[#B1FF8D] opacity-75" />
+            <div className="absolute inset-x-0 bottom-[106px] h-px bg-[#B1FF8D] opacity-75" />
+          </div>
+        )}
 
         <input
           type="file"
@@ -948,7 +972,7 @@ const editTemplatesRoute = createRoute({
           />
         )}
         
-        {!showMotionOptions && !isStickerSheetOpen && !selectedTextId && (
+        {!isOverlayMoving && !showMotionOptions && !isStickerSheetOpen && !selectedTextId && (
           <OverlayNavBar
             isOverlayFocused={false}
             showBackgroundOptions={showBackgroundOptions}

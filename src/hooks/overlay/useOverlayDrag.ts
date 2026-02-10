@@ -7,10 +7,21 @@ type UseOverlayDragOptions = {
   editingOverlayId: string | null;
   setOverlays: Dispatch<SetStateAction<Overlay[]>>;
   getContainerRect?: () => DOMRect | null;
+  getVerticalDragBounds?: () => { top: number; bottom: number } | null;
 };
 
-export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getContainerRect }: UseOverlayDragOptions) {
+export function useOverlayDrag({
+  overlays,
+  editingOverlayId,
+  setOverlays,
+  getContainerRect,
+  getVerticalDragBounds,
+}: UseOverlayDragOptions) {
   const DRAG_START_THRESHOLD_PX = 5;
+  const TEXT_BASE_MIN_HEIGHT = 24;
+  const TEXT_BASE_PADDING = 8;
+  // OverlayCanvas renders nested p-2 wrappers while dragging; include that height in bounds.
+  const DRAG_WRAPPER_VERTICAL_PADDING_PX = 32;
   const draggingOverlayId = useRef<string | null>(null);
   const pendingDragRef = useRef<{
     overlayId: string;
@@ -57,15 +68,47 @@ export function useOverlayDrag({ overlays, editingOverlayId, setOverlays, getCon
     setOverlays((prev) =>
       prev.map((overlay) =>
         overlay.id === draggingOverlayId.current
-          ? {
-              ...overlay,
-              x: pointerX - dragOffsetRef.current.x,
-              y: pointerY - dragOffsetRef.current.y,
-            }
+          ? (() => {
+              const nextX = pointerX - dragOffsetRef.current.x;
+              const nextY = pointerY - dragOffsetRef.current.y;
+              const verticalBounds = getVerticalDragBounds?.();
+
+              if (!verticalBounds) {
+                return {
+                  ...overlay,
+                  x: nextX,
+                  y: nextY,
+                };
+              }
+
+              const overlayHeight =
+                overlay.type === 'image'
+                  ? (overlay.baseHeight * overlay.scalePercent) / 100
+                  : (() => {
+                      const textScaleFactor = (overlay.scalePercent ?? 100) / 100;
+                      const scaledFontSize = Math.max(1, overlay.fontSize * textScaleFactor);
+                      const scaledPadding = TEXT_BASE_PADDING * textScaleFactor;
+                      const scaledMinHeight = TEXT_BASE_MIN_HEIGHT * textScaleFactor;
+                      const lineCount = Math.max(1, overlay.text.split('\n').length);
+                      const estimatedHeight = lineCount * scaledFontSize * 1.2 + scaledPadding * 2;
+                      return Math.max(scaledMinHeight, estimatedHeight);
+                    })();
+
+              const overlayBoxHeight = overlayHeight + DRAG_WRAPPER_VERTICAL_PADDING_PX;
+              const minY = verticalBounds.top;
+              const maxY = verticalBounds.bottom - overlayBoxHeight;
+              const clampedY = maxY < minY ? minY : Math.min(Math.max(nextY, minY), maxY);
+
+              return {
+                ...overlay,
+                x: nextX,
+                y: clampedY,
+              };
+            })()
           : overlay
       )
     );
-  }, [setOverlays]);
+  }, [setOverlays, getVerticalDragBounds]);
 
   const stopDrag = useCallback(() => {
     draggingOverlayId.current = null;

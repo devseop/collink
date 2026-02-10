@@ -12,6 +12,7 @@ type UseOverlayEditorOptions = {
   initialOverlays?: Overlay[];
   initialIsBackgroundColored?: boolean;
   getContainerRect?: () => DOMRect | null;
+  getVerticalDragBounds?: () => { top: number; bottom: number } | null;
 };
 
 const DEFAULT_MAX_OVERLAYS = 5;
@@ -24,6 +25,7 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
     initialIsBackgroundColored,
     initialOverlays,
     getContainerRect,
+    getVerticalDragBounds,
   } = options;
 
   const [previewImage, setPreviewImage] = useState<string | null>(initialBackgroundImageUrl ?? null);
@@ -139,6 +141,7 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
     editingOverlayId,
     setOverlays,
     getContainerRect,
+    getVerticalDragBounds,
   });
 
   const resetBackgroundImage = useCallback(() => {
