@@ -8,6 +8,7 @@ import usersRoute from './users/users.route';
 import userSetUsernameRoute from './users/userSetUsername.route';
 import usersProfileRoute from './users/usersProfile.route';
 import templatesRoute from './templates/templates.route';
+import startTemplatesRoute from './templates/startTemplates.route';
 import selectTemplatesRoute from './templates/selectTemplates.route';
 import editTemplatesRoute from './templates/editTemplates.route';
 import publicTemplateRoute from './publicTemplate.route';
@@ -20,7 +21,7 @@ const routerTree = rootRoute.addChildren([
   signUpRoute,
   publicTemplateRoute,
   usersRoute.addChildren([userSetUsernameRoute, usersProfileRoute]),
-  templatesRoute.addChildren([selectTemplatesRoute, editTemplatesRoute]),
+  templatesRoute.addChildren([startTemplatesRoute, selectTemplatesRoute, editTemplatesRoute]),
   completedTemplatesRoute,
 ]);
 

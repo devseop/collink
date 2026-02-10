@@ -171,6 +171,7 @@ const editTemplatesRoute = createRoute({
     const { templateId } = editTemplatesRoute.useSearch();
     const selectedTemplate = useTemplateSelectionStore((state) => state.selectedTemplate);
     const queryClient = useQueryClient();
+    const setDraft = useTemplateEditorStore((state) => state.setDraft);
     const replaceDraft = useTemplateEditorStore((state) => state.replaceDraft);
     const commitDraft = useTemplateEditorStore((state) => state.commitDraft);
     const resetAll = useTemplateEditorStore((state) => state.resetAll);
@@ -272,6 +273,21 @@ const editTemplatesRoute = createRoute({
       initialOverlays: initialEditorState.overlays,
       getContainerRect: () => contentRef.current?.getBoundingClientRect() ?? null,
     });
+    const persistDraftSnapshot = useCallback(() => {
+      setDraft({
+        backgroundImageUrl: previewImage,
+        backgroundFile,
+        backgroundColor,
+        isBackgroundColored,
+        overlays: overlays.map((overlay) => ({ ...overlay })),
+        animationType,
+      });
+    }, [setDraft, previewImage, backgroundFile, backgroundColor, isBackgroundColored, overlays, animationType]);
+
+    useEffect(() => {
+      persistDraftSnapshot();
+    }, [persistDraftSnapshot]);
+
     const isEmptyState = !previewImage && !isBackgroundColored && overlays.length === 0;
     const showBackgroundToggle = backgroundOptionsSource === 'navbar';
     const colorPickerValue = backgroundColor ?? '#FFFFFF';
@@ -782,6 +798,14 @@ const editTemplatesRoute = createRoute({
       >
         <Header
           useConfirmOnBack={hasChanges}
+          templateTabs={{
+            selectedKey: 'edit',
+            onSelectionChange: (key) => {
+              if (key === 'edit') return;
+              persistDraftSnapshot();
+              router.navigate({ to: '/templates/select' });
+            },
+          }}
           rightAction={{
             label: '공유',
             onClick: handleSaveTemplate,
