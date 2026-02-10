@@ -120,6 +120,8 @@ const createThumbnailBlob = async (dataUrl: string, targetWidth = 270) => {
 };
 
 type AnimationType = 'default' | 'spread' | 'collage';
+const BACKGROUND_LONG_PRESS_MS = 300;
+const BACKGROUND_LONG_PRESS_MOVE_THRESHOLD_PX = 8;
 
 const overlaysEqual = (a: Overlay[], b: Overlay[]) => {
   if (a.length !== b.length) return false;
@@ -198,6 +200,9 @@ const editTemplatesRoute = createRoute({
     const [isAnimationPreviewing, setIsAnimationPreviewing] = useState(false);
     const [viewportCenter, setViewportCenter] = useState({ x: 0, y: 0 });
     const [showMotionOptions, setShowMotionOptions] = useState(false);
+    const [isBackgroundLongPressing, setIsBackgroundLongPressing] = useState(false);
+    const backgroundLongPressTimerRef = useRef<number | null>(null);
+    const backgroundTouchStartRef = useRef<{ x: number; y: number } | null>(null);
     const [, takeScreenshot] = useScreenshot({ type: 'image/jpeg', quality: 0.92 });
     const initialEditorState = useMemo(() => {
       const hasCommitted =
@@ -445,6 +450,61 @@ const editTemplatesRoute = createRoute({
     const canMoveImageUp = selectedImageIndex >= 0 && selectedImageIndex < overlays.length - 1;
     const canMoveImageDown = selectedImageIndex > 0;
     const isOverlayMoving = Boolean(draggingOverlayId);
+    const shouldHideChrome = isOverlayMoving || isBackgroundLongPressing;
+
+    const clearBackgroundLongPressTimer = useCallback(() => {
+      if (backgroundLongPressTimerRef.current === null) return;
+      window.clearTimeout(backgroundLongPressTimerRef.current);
+      backgroundLongPressTimerRef.current = null;
+    }, []);
+
+    const resetBackgroundLongPress = useCallback(() => {
+      clearBackgroundLongPressTimer();
+      backgroundTouchStartRef.current = null;
+      setIsBackgroundLongPressing(false);
+    }, [clearBackgroundLongPressTimer]);
+
+    const handleBackgroundTouchStart = useCallback(
+      (event: ReactTouchEvent<HTMLDivElement>) => {
+        handleBackgroundPointerDown(event);
+        const target = event.target;
+        if (target instanceof Element && target.closest('[data-overlay-frame="true"]')) {
+          resetBackgroundLongPress();
+          return;
+        }
+        const touch = event.touches[0];
+        if (!touch) return;
+        clearBackgroundLongPressTimer();
+        setIsBackgroundLongPressing(false);
+        backgroundTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
+        backgroundLongPressTimerRef.current = window.setTimeout(() => {
+          setIsBackgroundLongPressing(true);
+          backgroundLongPressTimerRef.current = null;
+        }, BACKGROUND_LONG_PRESS_MS);
+      },
+      [clearBackgroundLongPressTimer, handleBackgroundPointerDown, resetBackgroundLongPress]
+    );
+
+    const handleBackgroundTouchMove = useCallback(
+      (event: ReactTouchEvent<HTMLDivElement>) => {
+        if (isBackgroundLongPressing) return;
+        const startPoint = backgroundTouchStartRef.current;
+        if (!startPoint) return;
+        const touch = event.touches[0];
+        if (!touch) return;
+        const distance = Math.hypot(touch.clientX - startPoint.x, touch.clientY - startPoint.y);
+        if (distance > BACKGROUND_LONG_PRESS_MOVE_THRESHOLD_PX) {
+          resetBackgroundLongPress();
+        }
+      },
+      [isBackgroundLongPressing, resetBackgroundLongPress]
+    );
+
+    useEffect(() => {
+      return () => {
+        clearBackgroundLongPressTimer();
+      };
+    }, [clearBackgroundLongPressTimer]);
 
     const handleSaveTemplate = useCallback(async () => {
       if (!user) {
@@ -809,9 +869,12 @@ const editTemplatesRoute = createRoute({
       <div
         className="relative w-full h-[100dvh] overflow-hidden"
         onMouseDown={handleBackgroundPointerDown}
-        onTouchStart={handleBackgroundPointerDown}
+        onTouchStart={handleBackgroundTouchStart}
+        onTouchMove={handleBackgroundTouchMove}
+        onTouchEnd={resetBackgroundLongPress}
+        onTouchCancel={resetBackgroundLongPress}
       >
-        {!isOverlayMoving && (
+        {!shouldHideChrome && (
           <Header
             useConfirmOnBack={hasChanges}
             templateTabs={{
@@ -972,7 +1035,7 @@ const editTemplatesRoute = createRoute({
           />
         )}
         
-        {!isOverlayMoving && !showMotionOptions && !isStickerSheetOpen && !selectedTextId && (
+        {!shouldHideChrome && !showMotionOptions && !isStickerSheetOpen && !selectedTextId && (
           <OverlayNavBar
             isOverlayFocused={false}
             showBackgroundOptions={showBackgroundOptions}
