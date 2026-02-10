@@ -161,9 +161,11 @@ export default function OverlayCanvas({
             positionStyle.left = `${viewportCenter.x}px`;
             positionStyle.top = `${viewportCenter.y}px`;
             positionStyle.opacity = 0;
-            positionStyle.transform = 'scale(0.9)';
+            // Start from viewport center using each overlay's own center point.
+            positionStyle.transform = 'translate(-50%, -50%) scale(0.9)';
           } else {
             positionStyle.transition = 'left 700ms ease, top 700ms ease, opacity 700ms ease, transform 700ms ease';
+            positionStyle.transform = 'translate(0, 0) scale(1)';
           }
         }
 
