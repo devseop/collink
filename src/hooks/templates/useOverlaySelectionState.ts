@@ -7,7 +7,6 @@ type UseOverlaySelectionStateOptions = {
   editingOverlayId: string | null;
   lastAddedImageOverlayId: string | null;
   finishEditingTextOverlay: () => void;
-  startEditingTextOverlay: (overlayId: string) => void;
 };
 
 export function useOverlaySelectionState({
@@ -15,7 +14,6 @@ export function useOverlaySelectionState({
   editingOverlayId,
   lastAddedImageOverlayId,
   finishEditingTextOverlay,
-  startEditingTextOverlay,
 }: UseOverlaySelectionStateOptions) {
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
@@ -26,13 +24,6 @@ export function useOverlaySelectionState({
   const [textColorValue, setTextColorValue] = useState('#222222');
   const [keyboardInset, setKeyboardInset] = useState(0);
   const keyboardBaselineRef = useRef<number | null>(null);
-  const textTapRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
-  const textTouchRef = useRef<{ id: string | null; x: number; y: number; moved: boolean }>({
-    id: null,
-    x: 0,
-    y: 0,
-    moved: false,
-  });
 
   const selectedImageOverlay = useMemo(
     () =>
@@ -130,42 +121,6 @@ export function useOverlaySelectionState({
     setSelectedTextId(null);
   }, [finishEditingTextOverlay]);
 
-  const handleTextOverlayTouchEnd = useCallback(
-    (event: ReactTouchEvent, overlayId: string) => {
-      const now = Date.now();
-      if (textTouchRef.current.id === overlayId && textTouchRef.current.moved) {
-        textTouchRef.current = { id: null, x: 0, y: 0, moved: false };
-        return;
-      }
-      const last = textTapRef.current;
-      const isDoubleTap = last.id === overlayId && now - last.time < 280;
-      textTapRef.current = { id: overlayId, time: now };
-      if (!isDoubleTap) return;
-      event.preventDefault();
-      event.stopPropagation();
-      startEditingTextOverlay(overlayId);
-      setSelectedTextId(overlayId);
-    },
-    [startEditingTextOverlay]
-  );
-
-  const handleTextOverlayTouchStart = useCallback((event: ReactTouchEvent, overlayId: string) => {
-    const touch = event.touches[0];
-    if (!touch) return;
-    textTouchRef.current = { id: overlayId, x: touch.clientX, y: touch.clientY, moved: false };
-  }, []);
-
-  const handleTextOverlayTouchMove = useCallback((event: ReactTouchEvent, overlayId: string) => {
-    if (textTouchRef.current.id !== overlayId) return;
-    const touch = event.touches[0];
-    if (!touch) return;
-    const deltaX = touch.clientX - textTouchRef.current.x;
-    const deltaY = touch.clientY - textTouchRef.current.y;
-    if (Math.hypot(deltaX, deltaY) > 6) {
-      textTouchRef.current.moved = true;
-    }
-  }, []);
-
   return {
     selectedImageId,
     setSelectedImageId,
@@ -187,8 +142,5 @@ export function useOverlaySelectionState({
     setTextColorValue,
     keyboardInset,
     handleBackgroundPointerDown,
-    handleTextOverlayTouchStart,
-    handleTextOverlayTouchMove,
-    handleTextOverlayTouchEnd,
   };
 }

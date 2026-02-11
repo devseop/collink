@@ -5,7 +5,7 @@ import IconClose from '../../../assets/icons/ic_close_stroke_black.svg?react';
 import IconRotate from '../../../assets/icons/ic_rotate_stroke.svg?react';
 import IconScale from '../../../assets/icons/ic_scale_stroke.svg?react';
 import IconEdit from '../../../assets/icons/ic_edit_stroke.svg?react';
-import IconLink from '../../../assets/icons/ic_link_stroke_black.svg?react';
+import IconLinkWhite from '../../../assets/icons/ic_link_stroke_white.svg?react';
 
 const FALLBACK_TEXT_WIDTH_PER_CHAR = 0.62;
 let textMeasureContext: CanvasRenderingContext2D | null = null;
@@ -72,9 +72,6 @@ type OverlayCanvasProps = {
     shouldPreventDefault?: boolean
   ) => void;
   handleOverlayTouchStart: (event: ReactTouchEvent<HTMLDivElement>, overlayId: string) => void;
-  handleTextOverlayTouchStart: (event: ReactTouchEvent, overlayId: string) => void;
-  handleTextOverlayTouchMove: (event: ReactTouchEvent, overlayId: string) => void;
-  handleTextOverlayTouchEnd: (event: ReactTouchEvent, overlayId: string) => void;
   updateTextOverlay: (overlayId: string, value: string) => void;
   startEditingTextOverlay: (overlayId: string) => void;
   finishEditingTextOverlay: () => void;
@@ -101,9 +98,6 @@ export default function OverlayCanvas({
   viewportCenter = { x: 0, y: 0 },
   handleOverlayMouseDown,
   handleOverlayTouchStart,
-  handleTextOverlayTouchStart,
-  handleTextOverlayTouchMove,
-  handleTextOverlayTouchEnd,
   updateTextOverlay,
   startEditingTextOverlay,
   finishEditingTextOverlay,
@@ -283,14 +277,6 @@ export default function OverlayCanvas({
                         event.stopPropagation();
                         onSelectText(overlay.id);
                       }}
-                      onTouchStart={(event) => handleTextOverlayTouchStart(event, overlay.id)}
-                      onTouchMove={(event) => handleTextOverlayTouchMove(event, overlay.id)}
-                      onTouchEnd={(event) => handleTextOverlayTouchEnd(event, overlay.id)}
-                      onDoubleClick={(event) => {
-                        event.stopPropagation();
-                        startEditingTextOverlay(overlay.id);
-                        onSelectText(overlay.id);
-                      }}
                     >
                       {overlay.text || ''}
                     </div>
@@ -308,6 +294,16 @@ export default function OverlayCanvas({
                   />
                 )}
               </div>
+              {!isText && shouldShowFrame && overlay.linkUrl?.trim() && (
+                <div className="pointer-events-none absolute right-2 top-2 z-40" aria-hidden>
+                  <IconLinkWhite
+                    className="h-4 w-4"
+                    style={{
+                      filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8))',
+                    }}
+                  />
+                </div>
+              )}
               {isSelected && !isDragging && (
                 <div className="pointer-events-none absolute inset-0 z-30">
                   <button
@@ -329,7 +325,7 @@ export default function OverlayCanvas({
                   >
                     <IconClose className="h-[14px] w-[14px]" aria-hidden />
                   </button>
-                  {!isText && (
+                  {!isText ? (
                     <button
                       type="button"
                       onMouseDown={(event) => {
@@ -347,11 +343,28 @@ export default function OverlayCanvas({
                       className="pointer-events-auto absolute -bottom-1.5 -left-1.5 z-30 flex h-7 w-7 -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full bg-[#98FF7C]"
                       aria-label={`${overlay.type === 'image' && overlay.linkUrl?.trim() ? '링크 설정' : '스티커 수정'}`}
                     >
-                      {overlay.type === 'image' && overlay.linkUrl?.trim() ? (
-                        <IconLink className="h-4 w-4" aria-hidden />
-                      ) : (
-                        <IconEdit className="h-4 w-4" aria-hidden />
-                      )}
+                      <IconEdit className="h-4 w-4" aria-hidden />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onTouchStart={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startEditingTextOverlay(overlay.id);
+                        onSelectText(overlay.id);
+                      }}
+                      className="pointer-events-auto absolute -bottom-1.5 -left-1.5 z-30 flex h-7 w-7 -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full bg-[#98FF7C]"
+                      aria-label="텍스트 편집"
+                    >
+                      <IconEdit className="h-4 w-4" aria-hidden />
                     </button>
                   )}
                   <>

@@ -429,15 +429,11 @@ const editTemplatesRoute = createRoute({
       setTextColorValue,
       keyboardInset,
       handleBackgroundPointerDown,
-      handleTextOverlayTouchStart,
-      handleTextOverlayTouchMove,
-      handleTextOverlayTouchEnd,
     } = useOverlaySelectionState({
       overlays,
       editingOverlayId,
       lastAddedImageOverlayId,
       finishEditingTextOverlay,
-      startEditingTextOverlay,
     });
 
     const [isStickerSheetOpen, setIsStickerSheetOpen] = useState(false);
@@ -933,9 +929,6 @@ const editTemplatesRoute = createRoute({
               viewportCenter={viewportCenter}
               handleOverlayMouseDown={handleOverlayMouseDown}
               handleOverlayTouchStart={handleOverlayTouchStart}
-              handleTextOverlayTouchStart={handleTextOverlayTouchStart}
-              handleTextOverlayTouchMove={handleTextOverlayTouchMove}
-              handleTextOverlayTouchEnd={handleTextOverlayTouchEnd}
               updateTextOverlay={updateTextOverlay}
               startEditingTextOverlay={startEditingTextOverlay}
               finishEditingTextOverlay={finishEditingTextOverlay}
