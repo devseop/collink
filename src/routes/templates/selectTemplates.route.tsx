@@ -65,7 +65,7 @@ const selectTemplatesRoute = createRoute({
     }, [activeIndex, navigateToEdit, replaceDraft, setSelectedTemplate, templates]);
 
     return (
-      <div className="relative min-h-full bg-[#F3F3F3]">
+      <div className="relative min-h-full bg-white">
         <Header
           templateTabs={{
             selectedKey: 'select',
@@ -124,7 +124,7 @@ const selectTemplatesRoute = createRoute({
           </div>
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 z-10 bg-gradient-to-t from-[#F3F3F3] via-[#F3F3F3] to-transparent px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3">
+        <div className="fixed inset-x-0 bottom-0 z-10 bg-gradient-to-t to-transparent px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3">
           <button
             type="button"
             className="flex w-full items-center justify-center rounded-lg bg-[#A6EA82] py-4 text-[16px] font-semibold leading-none text-[#222222] disabled:bg-[#E5E5E5] disabled:text-[#9F9F9F]"
