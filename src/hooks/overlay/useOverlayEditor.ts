@@ -17,6 +17,54 @@ type UseOverlayEditorOptions = {
 
 const DEFAULT_MAX_OVERLAYS = 5;
 
+const overlaysEqual = (left: Overlay[], right: Overlay[]) => {
+  if (left.length !== right.length) return false;
+
+  for (let index = 0; index < left.length; index += 1) {
+    const a = left[index];
+    const b = right[index];
+
+    if (a.type !== b.type || a.id !== b.id || a.x !== b.x || a.y !== b.y) {
+      return false;
+    }
+
+    if (a.type === 'image' && b.type === 'image') {
+      if (
+        a.image !== b.image ||
+        a.file !== b.file ||
+        a.rotation !== b.rotation ||
+        a.baseWidth !== b.baseWidth ||
+        a.baseHeight !== b.baseHeight ||
+        a.scalePercent !== b.scalePercent ||
+        a.linkUrl !== b.linkUrl ||
+        a.linkDescription !== b.linkDescription
+      ) {
+        return false;
+      }
+      continue;
+    }
+
+    if (a.type === 'text' && b.type === 'text') {
+      if (
+        a.text !== b.text ||
+        a.fontSize !== b.fontSize ||
+        a.fontWeight !== b.fontWeight ||
+        a.fontFamily !== b.fontFamily ||
+        a.rotation !== b.rotation ||
+        a.scalePercent !== b.scalePercent ||
+        a.textColor !== b.textColor ||
+        a.boxStyle !== b.boxStyle ||
+        a.underline !== b.underline ||
+        a.strikethrough !== b.strikethrough
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+};
+
 export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
   const {
     maxOverlays = DEFAULT_MAX_OVERLAYS,
@@ -219,7 +267,12 @@ export function useOverlayEditor(options: UseOverlayEditorOptions = {}) {
 
   useEffect(() => {
     if (initialOverlays) {
-      setOverlays(initialOverlays.map(normalizeOverlay));
+      const normalizedInitialOverlays = initialOverlays.map(normalizeOverlay);
+      setOverlays((currentOverlays) =>
+        overlaysEqual(currentOverlays, normalizedInitialOverlays)
+          ? currentOverlays
+          : normalizedInitialOverlays
+      );
     }
   }, [initialOverlays, normalizeOverlay]);
 
